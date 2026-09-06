@@ -1,0 +1,150 @@
+# SwagClaims messages.yml
+# Legacy '&' color codes are supported. Placeholders use {token} syntax.
+
+prefix: "&8[&2SwagClaims&8]&r "
+
+general:
+  players-only: "&cOnly players can use this command."
+  no-permission: "&cYou don't have permission to do that."
+  player-not-found: "&cPlayer '{player}' not found."
+  unknown-subcommand: "&cUnknown subcommand. Use /claim help for a list of commands."
+  reloaded: "&aSwagClaims configuration reloaded."
+
+tool:
+  need-golden-shovel: "&cYou need a {tool} to create or resize claims."
+  need-stick: "&cYou need a {tool} to investigate claims."
+  first-corner-set: "&aFirst corner set at {x}, {y}, {z}. Right-click the opposite corner to finish."
+  no-first-corner: "&cLeft-click a block first to set the starting corner."
+  resize-corner-selected: "&aSelected corner for resizing. Right-click the new position for that corner."
+  claim-created: "&aClaim created! It is now protected from other players."
+  claim-resized: "&aClaim resized successfully."
+  claim-too-small-width: "&cThis claim is too small. Claims must be at least {min} blocks wide."
+  claim-too-small-area: "&cThis claim is too small. Claims must be at least {min} blocks in area."
+  claim-overlap: "&cThat area overlaps an existing claim owned by {owner}."
+  not-enough-blocks: "&cYou don't have enough claim blocks! You need {needed} more."
+  no-permission-resize: "&cYou don't have permission to resize this claim."
+  investigate-wilderness: "&7This land is not claimed."
+  investigate-header: "&8&m                    "
+  investigate-owner: "&7Owner: &f{owner}"
+  investigate-admin-claim: "&7Owner: &cAdministrator"
+  investigate-size: "&7Size: &f{width}x{length} &7({area} blocks)"
+  investigate-type: "&7Type: &f{type}"
+  investigate-trust: "&7Trusted: &f{trusted}"
+  investigate-trust-none: "&7Trusted: &fNo one"
+  claims-disabled-world: "&cClaims are disabled in this world."
+
+trust:
+  usage: "&cUsage: /{command} <player>"
+  not-in-claim: "&cYou must be standing in a claim to do that."
+  no-permission-manage: "&cYou don't have permission to manage trust for this claim."
+  granted: "&a{target} has been granted {level} trust in this claim."
+  revoked: "&a{target} has been removed from this claim's trust list."
+  not-trusted: "&c{target} is not trusted in this claim."
+  cannot-trust-self: "&cYou can't trust or untrust yourself."
+
+abandon:
+  not-in-claim: "&cYou must be standing in a claim to abandon it."
+  no-permission: "&cYou don't have permission to abandon this claim."
+  success: "&aClaim abandoned! You have received {returned} claim blocks back."
+  success-toplevel: "&aTop-level claim and all its subdivisions have been abandoned! You have received {returned} claim blocks back."
+  no-claims: "&cYou don't have any claims to abandon."
+  all-success: "&aAll {count} of your claims have been abandoned! You have received {returned} claim blocks back."
+  confirm-all: "&eThis will delete all {count} of your claims. Run the command again within 10 seconds to confirm."
+
+list:
+  header: "&8&m                    "
+  title: "&2{player}'s Claims &7({count} total, {area} blocks used)"
+  entry: "&7- &f{world} &7[{minx},{minz}] to [{maxx},{maxz}] &7({type})"
+  none: "&7That player has no claims."
+
+info:
+  blocks-remaining: "&7Claim blocks remaining: &f{remaining}"
+
+protection:
+  no-build: "&cYou don't have permission to build in {owner}'s claim."
+  no-container: "&cYou don't have permission to use containers in {owner}'s claim."
+  no-access: "&cYou don't have permission to do that in {owner}'s claim."
+  no-pet-damage: "&cYou don't have permission to hurt that animal here."
+  admin-claim-owner: "an administrator"
+
+subdivide:
+  mode-on: "&aSubdivision mode enabled. Your next golden shovel clicks inside one of your claims will create a subdivision. Run the command again to turn it off."
+  mode-off: "&7Subdivision mode disabled."
+  must-be-in-claim: "&cYou must click inside a claim you can manage to place a subdivision corner."
+  no-permission: "&cYou don't have permission to manage this claim."
+  created: "&aSubdivision created!"
+  out-of-bounds: "&cA subdivision must be entirely inside its parent claim."
+
+admin:
+  mode-on: "&aAdmin claim mode enabled. Your next claim created with the golden shovel will be an administrator claim. Run the command again to turn it off."
+  mode-off: "&7Admin claim mode disabled."
+  claim-not-found: "&cNo claim found with id {id}."
+  delete-usage: "&cUsage: /deleteclaim [id] &7(or stand in the claim you want to delete)"
+  delete-not-standing: "&cYou must specify a claim id or stand in a claim to delete."
+  delete-success: "&aClaim #{id} deleted. {returned} claim block(s) credited back to its owner."
+  deleteall-usage: "&cUsage: /deleteallclaims <player>"
+  deleteall-success: "&aDeleted all {count} of {player}'s claims. {returned} claim block(s) credited back."
+  migrate-usage: "&cUsage: /swagclaims migrategp [--dry-run] [--source <path>]"
+  migrate-already-running: "&cA GriefPrevention migration is already in progress. Wait for it to finish."
+  migrate-started: "&eStarting GriefPrevention import from {source} — this runs in the background, you'll be notified when it finishes."
+  migrate-complete: "&a[{mode}] Migration complete! Claims: {claims} imported / {claimsSkipped} skipped. Trust: {trust} imported / {trustSkipped} skipped. Player data: {playerdata} imported / {playerdataSkipped} skipped. Flags: {flags} imported / {flagsSkipped} skipped. Full report: {report}"
+
+economy:
+  no-economy: "&cClaim block purchases/sales are unavailable — Vault economy is not hooked."
+  buy-usage: "&cUsage: /buyclaimblocks <amount>"
+  buy-invalid-amount: "&cAmount must be a positive whole number."
+  buy-insufficient-funds: "&cYou need {cost} to buy {amount} claim block(s)."
+  buy-success: "&aPurchased {amount} claim block(s) for {cost}."
+  sell-usage: "&cUsage: /sellclaimblocks <amount>"
+  sell-invalid-amount: "&cAmount must be a positive whole number."
+  sell-insufficient-blocks: "&cYou only have {remaining} spare claim block(s) to sell (blocks in use by your claims can't be sold)."
+  sell-success: "&aSold {amount} claim block(s) for {value}."
+
+blocks:
+  summary-header: "&8&m                    "
+  summary-accrued: "&7Accrued blocks: &f{accrued}"
+  summary-bonus: "&7Bonus blocks: &f{bonus}"
+  summary-used: "&7Used blocks: &f{used}"
+  summary-remaining: "&7Remaining blocks: &f{remaining}"
+
+starter:
+  granted: "&aYou've been granted a small starter claim around your spawn point! Use the golden shovel to expand it."
+
+siege:
+  world-disabled: "&cSieges aren't allowed in this world."
+  attacker-in-claim: "&cYou can't start a siege while standing inside a claim."
+  defender-not-in-claim: "&cThat player isn't standing in a claim."
+  cannot-siege-self: "&cYou can't siege yourself."
+  claim-not-siegable: "&cThat claim can't be sieged."
+  already-under-siege: "&cThat claim is already under siege."
+  on-cooldown: "&cYou must wait before sieging that player again."
+  specify-player: "&cLook at a claimed player's claim, or specify a player: /siege <player>."
+  started-attacker: "&aYou have begun a siege on {defender}'s claim!"
+  started-defender: "&c{attacker} has begun a siege on your claim!"
+
+pvp:
+  command-blocked-combat: "&cYou can't use that command while in combat."
+  no-lava-near-players: "&cYou can't dump lava this close to another player."
+  no-fire-near-players: "&cYou can't use flint and steel this close to another player."
+
+flag:
+  not-in-claim: "&cYou must be standing in a claim to manage its flags."
+  no-permission-manage: "&cYou don't have permission to manage flags for this claim."
+  unknown: "&cUnknown flag '{flag}'. Use /claimflag with no arguments to see the full list."
+  toggled-on: "&aFlag '{flag}' is now &2ON&a for this claim."
+  toggled-off: "&7Flag '{flag}' is now off for this claim."
+  set-with-params: "&aFlag '{flag}' is now &2ON&a for this claim &7(params: {params})&a."
+  list-header: "&8&m                    "
+
+gui:
+  claimlist:
+    unsafe-teleport: "&cCouldn't find a safe location to teleport to at that claim."
+    teleported: "&aTeleported to the claim."
+  sendblocks:
+    no-targets: "&cThere are no other online players to send claim blocks to."
+    invalid-target: "&cThat player is no longer online."
+    insufficient: "&cYou don't have enough spare claim blocks for that."
+    success-specific: "&aSent {amount} claim block(s) to {target}."
+    received: "&aYou received {amount} claim block(s) as a gift."
+    success-all: "&aSent {amount} claim block(s) to all {count} online player(s)."
+    broadcast-all: "&e{sender} has gifted {amount} claim block(s) to every online player!"

@@ -1,0 +1,180 @@
+name: SwagClaims
+version: '${project.version}'
+main: com.swag.swagclaims.SwagClaimsPlugin
+api-version: '1.21'
+author: swag617
+description: GriefPrevention-style land claims plugin for the Swag617 ecosystem
+website: https://swag617.github.io
+
+depend:
+  - SwagAPI
+
+softdepend:
+  - Vault
+  - PlaceholderAPI
+
+commands:
+  claim:
+    description: Main SwagClaims command
+    usage: /<command> [help|info|list|trust|untrust|abandon|abandontoplevel|abandonall|reload|migrategp]
+    aliases: [swagclaims, sc]
+  trust:
+    description: Grant a player BUILD trust in the claim you are standing in
+    usage: /<command> <player>
+  untrust:
+    description: Remove a player's trust from the claim you are standing in
+    usage: /<command> <player>
+  containertrust:
+    description: Grant a player CONTAINER trust in the claim you are standing in
+    usage: /<command> <player>
+  accesstrust:
+    description: Grant a player ACCESS trust in the claim you are standing in
+    usage: /<command> <player>
+  abandonclaim:
+    description: Delete the claim you are standing in
+    usage: /<command>
+  abandontoplevelclaim:
+    description: Delete the top-level claim you are standing in and all its subdivisions
+    usage: /<command>
+  abandonallclaims:
+    description: Delete all claims you own
+    usage: /<command>
+  claiminfo:
+    description: Show information about the claim you are standing in
+    usage: /<command>
+  claimslist:
+    description: List a player's claims, or open the claim list GUI with --gui
+    usage: /<command> [player|admin] [--gui]
+  buyclaimblocks:
+    description: Purchase claim blocks with Vault economy
+    usage: /<command> <amount>
+  sellclaimblocks:
+    description: Sell unused claim blocks for Vault economy currency
+    usage: /<command> <amount>
+  claimblocks:
+    description: Show your claim block totals, or gift some with "send"
+    usage: /<command> [send]
+  subdivideclaims:
+    description: Toggle subdivision creation mode for the claim tool
+    usage: /<command>
+  adminclaims:
+    description: Toggle administrator claim creation mode for the claim tool
+    usage: /<command>
+  deleteclaim:
+    description: Delete any claim by id, or the one you are standing in
+    usage: /<command> [id]
+  deleteallclaims:
+    description: Delete every claim owned by a player
+    usage: /<command> <player>
+  siege:
+    description: Begin a siege against another player's claim
+    usage: /<command> [player]
+  claimflag:
+    description: Toggle or configure a GPFlags-style flag on the claim you are standing in
+    usage: /<command> [flag] [params]
+  trustmenu:
+    description: Open the interactive trust manager GUI for the claim you are standing in
+    usage: /<command>
+  sendclaimblocks:
+    description: Gift some of your spare claim blocks to another player or everyone online
+    usage: /<command>
+
+permissions:
+  swagclaims.*:
+    description: Grants all SwagClaims permissions
+    default: op
+    children:
+      swagclaims.use: true
+      swagclaims.admin: true
+      swagclaims.flag.use: true
+
+  swagclaims.use:
+    description: Allows basic SwagClaims features (claiming, trust, abandon)
+    default: true
+
+  swagclaims.create:
+    description: Allows creating claims with the claim tool
+    default: true
+
+  swagclaims.trust:
+    description: Allows granting/revoking trust on owned claims
+    default: true
+
+  swagclaims.abandon:
+    description: Allows abandoning owned claims
+    default: true
+
+  swagclaims.claimslist:
+    description: Allows viewing your own claims list
+    default: true
+
+  swagclaims.claimslist.others:
+    description: Allows viewing other players' claims list
+    default: op
+
+  swagclaims.buyclaimblocks:
+    description: Allows purchasing claim blocks with Vault economy
+    default: true
+
+  swagclaims.sellclaimblocks:
+    description: Allows selling unused claim blocks for Vault economy currency
+    default: true
+
+  swagclaims.claimblocks:
+    description: Allows viewing your own claim block totals
+    default: true
+
+  swagclaims.subdivide:
+    description: Allows toggling subdivision creation mode with /subdivideclaims
+    default: true
+
+  swagclaims.siege:
+    description: Allows starting a siege with /siege
+    default: true
+
+  swagclaims.flag.use:
+    description: Allows toggling/configuring flags with /claimflag on claims you can manage
+    default: true
+
+  swagclaims.trustmenu:
+    description: Allows opening the interactive trust manager GUI on claims you can manage
+    default: true
+
+  swagclaims.sendclaimblocks:
+    description: Allows gifting spare claim blocks to another player or everyone online
+    default: true
+
+  swagclaims.admin:
+    description: Administrative permissions
+    default: op
+    children:
+      swagclaims.admin.claims: true
+      swagclaims.admin.reload: true
+      swagclaims.admin.ignoreclaims: true
+      swagclaims.admin.deleteclaim: true
+      swagclaims.admin.deleteallclaims: true
+      swagclaims.admin.migrate: true
+
+  swagclaims.admin.claims:
+    description: Allows creating/modifying admin claims and bypassing trust checks
+    default: op
+
+  swagclaims.admin.reload:
+    description: Allows reloading SwagClaims configuration
+    default: op
+
+  swagclaims.admin.ignoreclaims:
+    description: Allows building/interacting anywhere regardless of claim trust
+    default: op
+
+  swagclaims.admin.deleteclaim:
+    description: Allows deleting any single claim by id or by standing in it
+    default: op
+
+  swagclaims.admin.deleteallclaims:
+    description: Allows deleting every claim owned by a given player
+    default: op
+
+  swagclaims.admin.migrate:
+    description: Allows running the one-time /swagclaims migrategp GriefPrevention data importer
+    default: op

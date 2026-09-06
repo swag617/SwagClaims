@@ -1,0 +1,206 @@
+# SwagClaims configuration
+
+# The tool used to create/resize claims. Left-click sets/moves the first corner,
+# right-click sets the second corner and creates the claim (or, when clicked on
+# one of your own claim's corner blocks while standing inside it, resizes it).
+modification-tool: GOLDEN_SHOVEL
+
+# The tool used to inspect a claim. Right-click shows owner, size, and trust info in chat.
+investigation-tool: STICK
+
+# Minimum width (in blocks) and minimum area (in blocks^2) a new claim must have.
+minimum-width: 5
+minimum-area: 100
+
+# Maximum subdivision nesting depth. 0 = unlimited (not enforced this phase).
+max-subdivision-depth: 0
+
+# Claim blocks a brand-new player starts with.
+initial-blocks: 1000
+
+# When a claim is abandoned, this fraction of its area is credited back to the
+# owner's claim-block pool (bonus blocks first, then accrued blocks). 1.0 = full
+# refund, 0.5 = half refund, 0.0 = no refund.
+abandon-return-ratio: 1.0
+
+# How long (in seconds) claim boundary visualizations stay visible.
+visualization-duration-seconds: 10
+
+# ── GUI ───────────────────────────────────────────────────────────────────
+gui:
+  # SimpleDateFormat pattern used for created/last-active timestamps in the claim list GUI.
+  date-format: "dd.MM.yyyy HH:mm"
+
+# ── Per-world claim mode ─────────────────────────────────────────────────
+# SURVIVAL = the claim tool works normally in that world. DISABLED = new
+# top-level claims are rejected there with a clear message (existing claims,
+# if any were imported, still protect normally). "Default" is used for any
+# world without its own entry below. PvP is implicitly enabled in every
+# DISABLED-mode world and disabled everywhere else (see the "pvp" section).
+worlds:
+  Default:
+    claim-mode: SURVIVAL
+  world:
+    claim-mode: SURVIVAL
+  world_nether:
+    claim-mode: SURVIVAL
+  world_the_end:
+    claim-mode: SURVIVAL
+  resource_world:
+    claim-mode: SURVIVAL
+  resource_nether:
+    claim-mode: DISABLED
+  resource_end:
+    claim-mode: DISABLED
+  Flat:
+    claim-mode: DISABLED
+  pvp:
+    claim-mode: DISABLED
+
+# ── Claim blocks economy ─────────────────────────────────────────────────
+claim-blocks:
+  # Claim blocks accrued per real-world hour, credited once a minute (prorated)
+  # to every ONLINE player. Per-world overridable; "Default" applies to any
+  # world without its own entry.
+  accrued-per-hour:
+    Default: 250
+  # Hard cap on *accrued* blocks only — blocks bought via /buyclaimblocks are
+  # tracked separately as "bonus" blocks and are never capped by this.
+  max-accrued:
+    Default: 100000000
+  # Vault currency cost to buy one claim block with /buyclaimblocks.
+  purchase-cost: 1.0
+  # Vault currency paid per claim block sold with /sellclaimblocks.
+  sell-value: 1.0
+
+# Radius (in blocks) of a small BASIC claim automatically granted, centered on
+# a brand-new player's spawn location, on their very first join. This starter
+# claim is exempt from minimum-width/minimum-area (it's a courtesy grant, not
+# a player-initiated claim) but still respects world claim mode and won't be
+# created if it would overlap an existing claim. 0 = disabled.
+automatic-claims-radius: 4
+
+# ── Siege ─────────────────────────────────────────────────────────────────
+siege:
+  # Worlds where /siege is usable at all. Empty by default, matching the live
+  # server's config — siege is completely inert until a world is added here.
+  enabled-worlds: []
+  # How long (in seconds) after a siege starts before it automatically ends.
+  # GriefPrevention calls this the door-open delay; this simplified
+  # implementation uses it as the siege's total duration.
+  door-open-delay-seconds: 300
+  # Minutes an attacker must wait before sieging the same defender again.
+  cooldown-minutes: 60
+
+# ── PvP & combat protections ─────────────────────────────────────────────
+pvp:
+  protect-fresh-spawns: true
+  fresh-spawn-protection-seconds: 10
+  # If true, a player who disconnects while flagged "in combat" is killed
+  # immediately (their combat-tag clears automatically after combat-timeout-seconds).
+  punish-logout: true
+  combat-timeout-seconds: 15
+  blocked-commands: [tp, tpa, home, spawn, warp, back]
+  prevent-lava-dumping-near-players: true
+  prevent-flint-and-steel-near-players: true
+  # Radius (in blocks) used by the two lava/fire checks above.
+  danger-radius: 15
+
+# ── Misc claim protections ────────────────────────────────────────────────
+protection:
+  block-explosions-in-claims: true
+  piston-claims-only: true
+  fire-spreads: false
+  fire-destroys: false
+  prevent-enderman-griefing: true
+  prevent-silverfish-griefing: true
+  prevent-crop-trampling: true
+
+# ── Claim enter/exit titles ─────────────────────────────────────────────────
+# Replicates the GriefPreventionEnterTitles addon. Unlike every other message in this
+# plugin, these use MiniMessage formatting (<white>, <red>, etc — not '&' codes) and
+# %player%/%claim% placeholders, matching the addon's own config format that server
+# staff are already used to. %player% is the CLAIM OWNER's name (or "Administrator"
+# for admin claims), not the entering player; %claim% is the claim's nickname if it
+# has one, otherwise falling back to the same owner name.
+titles:
+  enter:
+    title: "<white>%player%'s Claim"
+    subtitle: ''
+    actionbar: ''
+  exit:
+    title: ''
+    subtitle: '<white>Wilderness'
+    actionbar: ''
+  # If enabled is true, titles only show in the worlds listed below. Empty/disabled
+  # (the default) watches every world.
+  watched-worlds:
+    enabled: false
+    worlds: []
+  # Whether entering/exiting a claim purely as a side effect of switching dimensions
+  # (portal travel, respawn in a different world) also shows these titles, as opposed
+  # to only showing them when walked into/out of normally.
+  show-on-dimension-switch: true
+  # Whether administrator claims show enter/exit titles at all.
+  show-on-admin-claim: true
+
+# ── Web panel ────────────────────────────────────────────────────────────────
+# Admin claims browser mounted through SwagAPI's shared web server at
+# /swagapi/swagclaims/ (requires SwagAPI's IWebService to be running). The main
+# page lists every claim on the server with its owner/world/coordinates/size/
+# trust list (read-only — in-game GUIs, /trustmenu and /claimslist --gui, cover
+# editing that); /swagapi/swagclaims/settings is the one write-capable page,
+# used to tune the claim-expiration policy below without editing this file.
+web:
+  enabled: true
+
+# ── Claim expiration (rank-tiered inactivity abandon) ───────────────────────
+# Automatically abandons a player's top-level BASIC claims (crediting blocks
+# back exactly like a normal /abandontoplevelclaim) once the OWNER has been
+# inactive — no login at all, not merely no claim resizing — longer than their
+# Vault/LuckPerms rank's configured threshold. DISABLED by default on purpose:
+# review these numbers (and/or tune them live at /swagapi/swagclaims/settings)
+# before turning this on on a live server. A summary is logged and a detailed
+# expiration-report-<timestamp>.txt is written to this plugin's data folder
+# every time the sweep actually expires something.
+expiration:
+  enabled: false
+  # How often (in hours) the expiration sweep runs.
+  check-interval-hours: 24
+  # Used for a claim owner whose Vault primary group has no entry under
+  # expiration.ranks below — including when Vault or its Permission provider
+  # isn't hooked at all. No large-claim tier applies in that case.
+  fallback-days: 30
+  bypass:
+    # Owners with at least this many TOTAL claim blocks (accrued + bonus) never
+    # expire. -1 disables this specific check.
+    claim-blocks: 10000
+    # Owners with at least this many BONUS claim blocks never expire.
+    # -1 (default) disables this specific check.
+    bonus-claim-blocks: -1
+    # Players holding this permission never expire. Checked via Vault's offline
+    # permission lookup when a Permission provider is hooked; skipped
+    # gracefully (never treated as a bypass) if one isn't.
+    permission: "swagclaims.expiration.bypass"
+  # Per-rank rules, keyed by the exact Vault/LuckPerms group name. Not limited
+  # to the four below — add any group name here, or use the live editor at
+  # /swagapi/swagclaims/settings, which lists every group Vault currently
+  # reports. A group with no entry here falls back to fallback-days above with
+  # no large-claim tier.
+  ranks:
+    Member:
+      default-days: 30
+      large-claim-threshold-blocks: 10000
+      large-claim-days: 90
+    Axolotl:
+      default-days: 90
+      large-claim-threshold-blocks: 100000
+      large-claim-days: 120
+    Lizard:
+      default-days: 180
+      large-claim-threshold-blocks: 100000
+      large-claim-days: 365
+    Flea:
+      default-days: 365
+      large-claim-threshold-blocks: 100000
+      large-claim-days: 740
