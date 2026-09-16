@@ -6,11 +6,13 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 
+import java.util.List;
 import java.util.UUID;
 
 /** /deleteallclaims <player> — admin force-delete of every claim a player owns. */
-public class DeleteAllClaimsCommand implements CommandExecutor {
+public class DeleteAllClaimsCommand implements CommandExecutor, TabCompleter {
 
     private final SwagClaimsPlugin plugin;
 
@@ -48,5 +50,11 @@ public class DeleteAllClaimsCommand implements CommandExecutor {
         placeholders.put("returned", String.valueOf(returned));
         sender.sendMessage(plugin.getMessages().getPrefix() + plugin.getMessages().get("admin.deleteall-success", placeholders));
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length == 1) return ClaimCommandUtil.players(args[0]);
+        return List.of();
     }
 }

@@ -20,19 +20,25 @@ import java.util.Map;
 
 /**
  * QoL panel for {@code /claimflag}, so managing GPFlags-style flags doesn't require typing exact
- * flag keys and params by hand. One item per flag (17 total, all fit in the content area without
- * pagination), green when on / red when off. Left-click toggles; right-click on the five flags
- * that take a free-text parameter cycles through a small preset list instead — Bukkit inventories
- * can't take free-text input, so a preset cycle is the simplest correct substitute (documented
- * below). Power users can still set an arbitrary params string with the unchanged text command,
- * {@code /claimflag <flag> <params>}.
+ * flag keys and params by hand. Green when on / red when off. Left-click toggles; right-click on
+ * flags that take a free-text parameter cycles through a small preset list instead — Bukkit
+ * inventories can't take free-text input, so a preset cycle is the simplest correct substitute
+ * (documented below). Power users can still set an arbitrary params string with the unchanged text
+ * command, {@code /claimflag <flag> <params>}.
+ *
+ * <p><b>Pagination (added 2026-09-15):</b> the flag catalog grew past what a single 54-slot page
+ * can hold (60 flags as of this batch), so this GUI now paginates {@link #FLAGS_PER_PAGE} (28) at
+ * a time across 4 content rows, with Prev/Next navigation at the bottom. The original single-page
+ * layout (17 flags, no pagination) is preserved as page 0 of the new scheme — nothing about
+ * existing flags' slots/behavior changed, only capacity.
  *
  * <p><b>Presets (judgment call — pick sensible values, not exhaustive):</b>
  * <ul>
  *     <li>{@link ClaimFlags#PLAYER_TIME}: day → noon → night → midnight → off (off removes the
  *     flag entirely, matching how {@code /claimflag playertime off} already works from chat).</li>
  *     <li>{@link ClaimFlags#PLAYER_WEATHER}: sun → rain (loops).</li>
- *     <li>{@link ClaimFlags#ENTER_ACTION_BAR}: three canned messages (loops).</li>
+ *     <li>{@link ClaimFlags#ENTER_ACTION_BAR}, {@link ClaimFlags#ENTER_MESSAGE},
+ *     {@link ClaimFlags#EXIT_MESSAGE}: three canned messages each (loop).</li>
  *     <li>{@link ClaimFlags#HEALTH_REGEN}: 0.5 → 1.0 → 2.0 → 5.0 health/sec (loops).</li>
  *     <li>{@link ClaimFlags#NO_HUNGER}: "full" (no params — fully blocks drain) → 2 → 4 → 10
  *     (the 1-in-N chance divisor documented on {@link ClaimFlags#NO_HUNGER}); "full" is stored as
@@ -41,13 +47,18 @@ import java.util.Map;
  */
 public class ClaimFlagGUI implements OpenMenu {
 
-    // Content area: two full rows (9-17, 18-26) plus one more (27-34) - 17 flags fit in 26 slots.
+    // Content area: four full rows (each skipping the leftmost/rightmost column for a glass
+    // border), 7 slots x 4 rows = 28 flags per page.
     private static final int[] CONTENT_SLOTS = {
             10, 11, 12, 13, 14, 15, 16,
             19, 20, 21, 22, 23, 24, 25,
-            28, 29, 30
+            28, 29, 30, 31, 32, 33, 34,
+            37, 38, 39, 40, 41, 42, 43
     };
+    private static final int FLAGS_PER_PAGE = CONTENT_SLOTS.length;
+    private static final int SLOT_PREV_PAGE = 45;
     private static final int SLOT_CLOSE = 49;
+    private static final int SLOT_NEXT_PAGE = 53;
 
     private static final Map<String, String> DISPLAY_NAMES = new HashMap<>();
     private static final Map<String, String[]> PRESETS = new HashMap<>();
@@ -71,10 +82,58 @@ public class ClaimFlagGUI implements OpenMenu {
         DISPLAY_NAMES.put(ClaimFlags.ENTER_ACTION_BAR, "Enter Action Bar");
         DISPLAY_NAMES.put(ClaimFlags.PVP, "PvP");
 
+        DISPLAY_NAMES.put(ClaimFlags.NO_ENTER, "No Enter");
+        DISPLAY_NAMES.put(ClaimFlags.NO_EXIT, "No Exit");
+        DISPLAY_NAMES.put(ClaimFlags.NO_FLY, "No Fly");
+        DISPLAY_NAMES.put(ClaimFlags.NO_CHORUS_FRUIT, "No Chorus Fruit");
+        DISPLAY_NAMES.put(ClaimFlags.NO_ENDER_PEARL, "No Ender Pearl");
+        DISPLAY_NAMES.put(ClaimFlags.NO_HOMES_SET, "No Homes Set");
+        DISPLAY_NAMES.put(ClaimFlags.NO_WARPS_SET, "No Warps Set");
+        DISPLAY_NAMES.put(ClaimFlags.NO_PLAYER_WARPS, "No PlayerWarps");
+        DISPLAY_NAMES.put(ClaimFlags.PROTECT_NAMED_MOBS, "Protect Named Mobs");
+        DISPLAY_NAMES.put(ClaimFlags.NO_ANIMAL_DAMAGE, "No Animal Damage");
+        DISPLAY_NAMES.put(ClaimFlags.NO_BACK, "No /back");
+        DISPLAY_NAMES.put(ClaimFlags.NO_ELYTRA, "No Elytra");
+        DISPLAY_NAMES.put(ClaimFlags.NO_VILLAGER_TRADES, "No Villager Trades");
+        DISPLAY_NAMES.put(ClaimFlags.NO_ITEM_DROP, "No Item Drop");
+        DISPLAY_NAMES.put(ClaimFlags.NO_ITEM_PICKUP, "No Item Pickup");
+        DISPLAY_NAMES.put(ClaimFlags.NO_INVISIBILITY, "No Invisibility");
+        DISPLAY_NAMES.put(ClaimFlags.ALLOW_PRESSURE_PLATES, "Allow Pressure Plates");
+        DISPLAY_NAMES.put(ClaimFlags.EXIT_MESSAGE, "Exit Message");
+        DISPLAY_NAMES.put(ClaimFlags.ENTER_MESSAGE, "Enter Message");
+        DISPLAY_NAMES.put(ClaimFlags.ALLOW_LEVERS, "Allow Levers");
+        DISPLAY_NAMES.put(ClaimFlags.ALLOW_DOORS, "Allow Doors");
+        DISPLAY_NAMES.put(ClaimFlags.ALLOW_TRAPDOORS, "Allow Trapdoors");
+        DISPLAY_NAMES.put(ClaimFlags.NO_MOB_DAMAGE, "No Mob Damage");
+        DISPLAY_NAMES.put(ClaimFlags.NO_MOB_FALL_DAMAGE, "No Mob Fall Damage");
+        DISPLAY_NAMES.put(ClaimFlags.NO_THORN_DAMAGE, "No Thorn Damage");
+        DISPLAY_NAMES.put(ClaimFlags.NO_TOP, "No /top");
+        DISPLAY_NAMES.put(ClaimFlags.NO_POTION_EFFECTS, "No Potion Effects");
+        DISPLAY_NAMES.put(ClaimFlags.NO_RESIZING, "No Resizing");
+        DISPLAY_NAMES.put(ClaimFlags.NO_WINDCHARGE, "No Windcharge");
+        DISPLAY_NAMES.put(ClaimFlags.NO_ARMOR_HIDE, "No Armor Hide");
+        DISPLAY_NAMES.put(ClaimFlags.CHEST_VIEWING, "Chest Viewing");
+        DISPLAY_NAMES.put(ClaimFlags.NO_COPPER_OXIDIZATION, "No Copper Oxidization");
+        DISPLAY_NAMES.put(ClaimFlags.NO_FIRE_SPREAD, "No Fire Spread");
+        DISPLAY_NAMES.put(ClaimFlags.NO_GRASS_SPREAD, "No Grass Spread");
+        DISPLAY_NAMES.put(ClaimFlags.NO_GROWTH, "No Growth");
+        DISPLAY_NAMES.put(ClaimFlags.NO_VINE_GROWTH, "No Vine Growth");
+        DISPLAY_NAMES.put(ClaimFlags.NO_ICE_FORM, "No Ice Form");
+        DISPLAY_NAMES.put(ClaimFlags.NO_ICE_MELT, "No Ice Melt");
+        DISPLAY_NAMES.put(ClaimFlags.NO_LEAF_DECAY, "No Leaf Decay");
+        DISPLAY_NAMES.put(ClaimFlags.NO_SNOW_FORM, "No Snow Form");
+        DISPLAY_NAMES.put(ClaimFlags.NO_SCULK_SPREAD, "No Sculk Spread");
+        DISPLAY_NAMES.put(ClaimFlags.NO_CONCRETE_FORM, "No Concrete Form");
+        DISPLAY_NAMES.put(ClaimFlags.ALLOW_EXPLOSIONS, "Allow Explosions");
+
         PRESETS.put(ClaimFlags.PLAYER_TIME, new String[]{"day", "noon", "night", "midnight", "off"});
         PRESETS.put(ClaimFlags.PLAYER_WEATHER, new String[]{"sun", "rain"});
         PRESETS.put(ClaimFlags.ENTER_ACTION_BAR, new String[]{
                 "&aWelcome to the claim!", "&eYou are entering a protected area.", "&cKeep out!"});
+        PRESETS.put(ClaimFlags.ENTER_MESSAGE, new String[]{
+                "&aWelcome to the claim!", "&eYou are entering a protected area.", "&cKeep out!"});
+        PRESETS.put(ClaimFlags.EXIT_MESSAGE, new String[]{
+                "&aThanks for visiting!", "&eYou have left the protected area.", "&7Goodbye."});
         PRESETS.put(ClaimFlags.HEALTH_REGEN, new String[]{"0.5", "1.0", "2.0", "5.0"});
         PRESETS.put(ClaimFlags.NO_HUNGER, new String[]{"full", "2", "4", "10"});
     }
@@ -82,26 +141,46 @@ public class ClaimFlagGUI implements OpenMenu {
     private final SwagClaimsPlugin plugin;
     private final Player viewer;
     private final Claim claim;
+    private final int page;
 
     public ClaimFlagGUI(SwagClaimsPlugin plugin, Player viewer, Claim claim) {
+        this(plugin, viewer, claim, 0);
+    }
+
+    public ClaimFlagGUI(SwagClaimsPlugin plugin, Player viewer, Claim claim, int page) {
         this.plugin = plugin;
         this.viewer = viewer;
         this.claim = claim;
+        this.page = Math.max(0, Math.min(page, totalPages() - 1));
+    }
+
+    private static int totalPages() {
+        return Math.max(1, (int) Math.ceil(ClaimFlags.ALL.size() / (double) FLAGS_PER_PAGE));
     }
 
     public void open() {
         String claimName = claim.getName() != null && !claim.getName().isEmpty() ? claim.getName() : "Claim #" + claim.getId();
-        Inventory inv = Bukkit.createInventory(null, 54, color("&2&lFlags: " + claimName));
+        String title = "&2&lFlags: " + claimName + " &7(" + (page + 1) + "/" + totalPages() + ")";
+        Inventory inv = Bukkit.createInventory(null, 54, color(title));
 
         ItemStack filler = createNamedItem(Material.GRAY_STAINED_GLASS_PANE, " ", null);
         for (int i = 0; i < 54; i++) {
             inv.setItem(i, filler);
         }
 
-        for (int i = 0; i < CONTENT_SLOTS.length && i < ClaimFlags.ALL.size(); i++) {
-            inv.setItem(CONTENT_SLOTS[i], createFlagItem(ClaimFlags.ALL.get(i)));
+        int startIndex = page * FLAGS_PER_PAGE;
+        for (int i = 0; i < CONTENT_SLOTS.length; i++) {
+            int flagIndex = startIndex + i;
+            if (flagIndex >= ClaimFlags.ALL.size()) break;
+            inv.setItem(CONTENT_SLOTS[i], createFlagItem(ClaimFlags.ALL.get(flagIndex)));
         }
 
+        if (page > 0) {
+            inv.setItem(SLOT_PREV_PAGE, createNamedItem(Material.ARROW, "&ePrevious Page", null));
+        }
+        if (page < totalPages() - 1) {
+            inv.setItem(SLOT_NEXT_PAGE, createNamedItem(Material.ARROW, "&eNext Page", null));
+        }
         inv.setItem(SLOT_CLOSE, createNamedItem(Material.BARRIER, "&cClose", null));
 
         viewer.openInventory(inv);
@@ -136,13 +215,22 @@ public class ClaimFlagGUI implements OpenMenu {
             viewer.closeInventory();
             return;
         }
+        if (slot == SLOT_PREV_PAGE && page > 0) {
+            new ClaimFlagGUI(plugin, viewer, claim, page - 1).open();
+            return;
+        }
+        if (slot == SLOT_NEXT_PAGE && page < totalPages() - 1) {
+            new ClaimFlagGUI(plugin, viewer, claim, page + 1).open();
+            return;
+        }
 
         String key = null;
-        for (int i = 0; i < CONTENT_SLOTS.length && i < ClaimFlags.ALL.size(); i++) {
-            if (CONTENT_SLOTS[i] == slot) {
-                key = ClaimFlags.ALL.get(i);
-                break;
-            }
+        int startIndex = page * FLAGS_PER_PAGE;
+        for (int i = 0; i < CONTENT_SLOTS.length; i++) {
+            if (CONTENT_SLOTS[i] != slot) continue;
+            int flagIndex = startIndex + i;
+            if (flagIndex < ClaimFlags.ALL.size()) key = ClaimFlags.ALL.get(flagIndex);
+            break;
         }
         if (key == null) return;
 

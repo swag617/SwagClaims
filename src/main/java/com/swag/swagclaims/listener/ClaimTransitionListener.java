@@ -3,7 +3,10 @@ package com.swag.swagclaims.listener;
 import com.swag.swagclaims.SwagClaimsPlugin;
 import com.swag.swagclaims.config.ClaimsConfig;
 import com.swag.swagclaims.manager.ClaimManager;
+import com.swag.swagclaims.manager.FlagManager;
 import com.swag.swagclaims.model.Claim;
+import com.swag.swagclaims.model.ClaimFlags;
+import com.swag.swagclaims.model.TrustLevel;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
@@ -18,6 +21,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 
 import java.time.Duration;
 import java.util.Map;
@@ -69,6 +73,83 @@ public class ClaimTransitionListener implements Listener {
         handleTransition(event.getPlayer(), to, false);
     }
 
+    /**
+     * Runs at LOW priority — before {@link #onMove} (default NORMAL) — so a denied crossing is
+     * cancelled before the transition (titles, playertime/weather refresh, enter/exit messages)
+     * ever fires for it. See {@link #gateTransition} for what's enforced: claim bans (always win,
+     * overriding trust — see /claimban), noenter, and noexit.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onMoveGate(PlayerMoveEvent event) {
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (to == null || to.getWorld() == null) return;
+        if (from.getWorld().equals(to.getWorld()) && from.getBlockX() == to.getBlockX() && from.getBlockZ() == to.getBlockZ()) {
+            return;
+        }
+        if (!gateTransition(event.getPlayer(), from, to)) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** Same gate as {@link #onMoveGate}, for teleport-based crossings (commands, plugins, ender pearls, chorus fruit, etc.). */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onTeleportGate(PlayerTeleportEvent event) {
+        Location to = event.getTo();
+        if (to == null || to.getWorld() == null) return;
+        if (!gateTransition(event.getPlayer(), event.getFrom(), to)) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Returns false if this crossing should be denied: entering a claim the player is banned from
+     * (via /claimban — this overrides trust entirely, see {@link ClaimManager#isBanned}), entering
+     * a claim flagged {@code noenter} without at least ACCESS trust, or leaving a claim flagged
+     * {@code noexit} without at least ACCESS trust. No-ops (returns true) if the crossing doesn't
+     * actually change which claim applies.
+     */
+    private boolean gateTransition(Player player, Location from, Location to) {
+        Claim toClaim = claimManager.getClaimAt(to);
+        Claim fromClaim = claimManager.getClaimAt(from);
+        if (sameClaim(fromClaim, toClaim)) return true;
+
+        FlagManager flagManager = plugin.getFlagManager();
+
+        if (toClaim != null && claimManager.isBanned(toClaim, player.getUniqueId()) && !isBanExempt(player, toClaim)) {
+            plugin.getMessages().send(player, "ban.entry-denied");
+            return false;
+        }
+
+        if (toClaim != null && flagManager.isSet(toClaim, ClaimFlags.NO_ENTER)
+                && !claimManager.hasPermission(player, to, TrustLevel.ACCESS)) {
+            plugin.getMessages().send(player, "flag.no-enter-denied");
+            return false;
+        }
+
+        if (fromClaim != null && flagManager.isSet(fromClaim, ClaimFlags.NO_EXIT)
+                && !claimManager.hasPermission(player, from, TrustLevel.ACCESS)) {
+            plugin.getMessages().send(player, "flag.no-exit-denied");
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean sameClaim(Claim a, Claim b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.getId() == b.getId();
+    }
+
+    /** Owners, admin.claims/ignoreclaims bypass holders, and players with the ignoreClaims data flag are never blocked by a claim ban. */
+    private boolean isBanExempt(Player player, Claim claim) {
+        if (player.hasPermission("swagclaims.admin.ignoreclaims")) return true;
+        if (player.hasPermission("swagclaims.admin.claims")) return true;
+        if (claim.getOwnerUuid() != null && claim.getOwnerUuid().equals(player.getUniqueId())) return true;
+        return claimManager.getPlayerData(player.getUniqueId()).isIgnoreClaims();
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChangedWorld(PlayerChangedWorldEvent event) {
         handleTransition(event.getPlayer(), event.getPlayer().getLocation(), true);
@@ -106,6 +187,10 @@ public class ClaimTransitionListener implements Listener {
 
         if (newClaim != null) {
             flagListener.showEnterActionBar(player, newClaim);
+            flagListener.showEnterMessage(player, newClaim);
+        }
+        if (oldClaim != null) {
+            flagListener.showExitMessage(player, oldClaim);
         }
 
         showTransitionTitles(player, oldClaim, newClaim, newLoc, dimensionSwitch);

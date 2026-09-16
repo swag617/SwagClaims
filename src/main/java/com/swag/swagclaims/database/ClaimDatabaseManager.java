@@ -114,6 +114,11 @@ public class ClaimDatabaseManager {
                         "start_time BIGINT NOT NULL," +
                         "end_time BIGINT)");
 
+                st.execute("CREATE TABLE IF NOT EXISTS swagclaims_bans (" +
+                        "claim_id BIGINT NOT NULL," +
+                        "player_uuid VARCHAR(36) NOT NULL," +
+                        "PRIMARY KEY (claim_id, player_uuid))");
+
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to create SwagClaims schema!", e);
@@ -174,6 +179,20 @@ public class ClaimDatabaseManager {
                         Claim claim = result.get(claimId);
                         if (claim == null) continue; // orphaned row (claim deleted without cascading) — skip
                         claim.setFlag(rs.getString("flag_key"), new FlagValue(rs.getString("params"), rs.getBoolean("value")));
+                    }
+                }
+
+                try (Statement st = conn.createStatement();
+                     ResultSet rs = st.executeQuery("SELECT * FROM swagclaims_bans")) {
+                    while (rs.next()) {
+                        long claimId = rs.getLong("claim_id");
+                        Claim claim = result.get(claimId);
+                        if (claim == null) continue; // orphaned row (claim deleted without cascading) — skip
+                        try {
+                            claim.banPlayer(UUID.fromString(rs.getString("player_uuid")));
+                        } catch (IllegalArgumentException ignored) {
+                            // malformed UUID in the row — skip rather than fail the whole load
+                        }
                     }
                 }
             }
@@ -253,6 +272,36 @@ public class ClaimDatabaseManager {
         });
     }
 
+    /** Updates a claim's owner (used for admin ownership transfers — see ClaimManager#transferClaim). */
+    public void updateClaimOwner(long claimId, UUID ownerUuid) {
+        db.executeAsync(() -> {
+            String sql = "UPDATE swagclaims_claims SET owner_uuid = ? WHERE id = ?";
+            try (Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, ownerUuid != null ? ownerUuid.toString() : null);
+                ps.setLong(2, claimId);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to update owner for claim #" + claimId, e);
+            }
+        });
+    }
+
+    /** Updates a claim's display nickname ({@code null} clears it back to unset). */
+    public void updateClaimName(long claimId, String name) {
+        db.executeAsync(() -> {
+            String sql = "UPDATE swagclaims_claims SET name = ? WHERE id = ?";
+            try (Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, name);
+                ps.setLong(2, claimId);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to update name for claim #" + claimId, e);
+            }
+        });
+    }
+
     /**
      * Updates a claim's parent id (null clears it back to top-level). Used by
      * {@code GriefPreventionImporter}'s second pass, which links every migrated claim to its
@@ -276,7 +325,7 @@ public class ClaimDatabaseManager {
         });
     }
 
-    /** Deletes a claim and its trust/flag rows. */
+    /** Deletes a claim and its trust/flag/ban rows. */
     public void deleteClaim(long claimId) {
         db.executeAsync(() -> {
             try (Connection conn = db.getConnection()) {
@@ -288,12 +337,51 @@ public class ClaimDatabaseManager {
                     ps.setLong(1, claimId);
                     ps.executeUpdate();
                 }
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM swagclaims_bans WHERE claim_id = ?")) {
+                    ps.setLong(1, claimId);
+                    ps.executeUpdate();
+                }
                 try (PreparedStatement ps = conn.prepareStatement("DELETE FROM swagclaims_claims WHERE id = ?")) {
                     ps.setLong(1, claimId);
                     ps.executeUpdate();
                 }
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to delete claim #" + claimId, e);
+            }
+        });
+    }
+
+    // ── Claim bans (/claimban, /unclaimban) ─────────────────────────────────
+
+    /** Inserts a ban row; no-ops (via INSERT OR IGNORE / ON DUPLICATE KEY) if already banned. */
+    public void saveBan(long claimId, UUID playerUuid) {
+        db.executeAsync(() -> {
+            String sql = "INSERT INTO swagclaims_bans (claim_id, player_uuid) VALUES (?, ?) " +
+                    (db.isMySQL()
+                            ? "ON DUPLICATE KEY UPDATE claim_id = claim_id"
+                            : "ON CONFLICT(claim_id, player_uuid) DO NOTHING");
+            try (Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, claimId);
+                ps.setString(2, playerUuid.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to save ban for claim #" + claimId + " player " + playerUuid, e);
+            }
+        });
+    }
+
+    /** Deletes a single ban row. */
+    public void deleteBan(long claimId, UUID playerUuid) {
+        db.executeAsync(() -> {
+            try (Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "DELETE FROM swagclaims_bans WHERE claim_id = ? AND player_uuid = ?")) {
+                ps.setLong(1, claimId);
+                ps.setString(2, playerUuid.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to delete ban for claim #" + claimId + " player " + playerUuid, e);
             }
         });
     }

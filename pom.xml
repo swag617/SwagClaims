@@ -77,6 +77,15 @@
             <version>2.11.6</version>
             <scope>provided</scope>
         </dependency>
+        <!-- ItemsAdder — custom furniture break/interact protection (soft dep, system scope,
+             mirrors FleaCraft's own setup) -->
+        <dependency>
+            <groupId>dev.lone</groupId>
+            <artifactId>itemsadder-api</artifactId>
+            <version>3.6.1</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/ItemsAdder.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>

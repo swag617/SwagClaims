@@ -24,7 +24,7 @@ import java.util.UUID;
 /**
  * Paginated claim list + teleport GUI, replacing the "MyClaimsGUI" addon on the live server.
  * Three entry points share this one class via {@link Mode}: viewing your own claims, viewing
- * another player's claims (admin-only, mirrors {@code /claimslist <player> --gui}), and an
+ * another player's claims (admin-only, mirrors {@code /claimslist <player>}), and an
  * admin-claims-only view. Only top-level claims are listed (subdivisions don't carry their own
  * claim-block cost and aren't teleport destinations in their own right) — same filter
  * {@code ClaimsListCommand} already applies to its chat output.
@@ -207,11 +207,18 @@ public class ClaimListGUI implements OpenMenu {
     }
 
     /**
-     * Scans downward from just above the claim's center-column highest block for the first
-     * standing spot with two passable blocks (feet/head, non-lava) over solid, non-hazardous
-     * ground — the "don't teleport into a block or off a cliff into lava" safety check called
-     * out in the phase plan. Returns null if nothing safe is found in range, in which case the
-     * teleport is aborted rather than dropping the player somewhere dangerous.
+     * Scans downward from just above the claim's own recorded top for the first standing spot
+     * with two passable blocks (feet/head, non-lava) over solid, non-hazardous ground — the
+     * "don't teleport into a block or off a cliff into lava" safety check called out in the
+     * phase plan. Returns null if nothing safe is found in range, in which case the teleport is
+     * aborted rather than dropping the player somewhere dangerous.
+     *
+     * <p>Deliberately anchors on {@code claim.getMaxY()} rather than
+     * {@code world.getHighestBlockYAt(x, z)}: the latter is a world-column heightmap, which in
+     * the Nether returns the bedrock roof (there is no "surface" there in the Overworld sense),
+     * dropping players on the nether roof for any claim built at normal Nether floor height —
+     * a real reported bug. The claim's own Y bounds are always where the player actually built,
+     * regardless of dimension.</p>
      */
     private Location findSafeTeleportLocation(Claim claim) {
         World world = Bukkit.getWorld(claim.getWorld());
@@ -220,8 +227,8 @@ public class ClaimListGUI implements OpenMenu {
         int x = (claim.getMinX() + claim.getMaxX()) / 2;
         int z = (claim.getMinZ() + claim.getMaxZ()) / 2;
 
-        int top = Math.min(world.getHighestBlockYAt(x, z) + 3, world.getMaxHeight() - 2);
-        int bottom = world.getMinHeight() + 1;
+        int top = Math.min(claim.getMaxY() + 3, world.getMaxHeight() - 2);
+        int bottom = Math.max(claim.getMinY() - 1, world.getMinHeight() + 1);
         for (int y = top; y >= bottom; y--) {
             if (isSafeStandingLocation(world, x, y, z)) {
                 return new Location(world, x + 0.5, y, z + 0.5, viewer.getLocation().getYaw(), viewer.getLocation().getPitch());

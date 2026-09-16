@@ -3,8 +3,10 @@ package com.swag.swagclaims.model;
 import org.bukkit.Location;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentHashMap.KeySetView;
 
 /**
  * A claimed region of a world. Mutable POJO — the in-memory source of truth lives in
@@ -37,6 +39,9 @@ public class Claim {
 
     private final Map<String, TrustLevel> trust = new ConcurrentHashMap<>();
     private final Map<String, FlagValue> flags = new ConcurrentHashMap<>();
+
+    /** Players banned from this specific claim via /claimban — always denied entry, overriding any trust they hold. */
+    private final KeySetView<UUID, Boolean> bannedPlayers = ConcurrentHashMap.newKeySet();
 
     public Claim() {
     }
@@ -146,6 +151,24 @@ public class Claim {
 
     public void removeFlag(String key) {
         flags.remove(key.toLowerCase());
+    }
+
+    // ── Claim bans (/claimban, /unclaimban) ─────────────────────────────────
+
+    public Set<UUID> getBannedPlayers() {
+        return bannedPlayers;
+    }
+
+    public boolean isBanned(UUID uuid) {
+        return uuid != null && bannedPlayers.contains(uuid);
+    }
+
+    public void banPlayer(UUID uuid) {
+        bannedPlayers.add(uuid);
+    }
+
+    public void unbanPlayer(UUID uuid) {
+        bannedPlayers.remove(uuid);
     }
 
     // ── Getters / setters ───────────────────────────────────────────────────

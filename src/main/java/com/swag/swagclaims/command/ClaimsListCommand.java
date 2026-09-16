@@ -19,8 +19,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * /claimslist [player|admin] [--gui] — lists a player's top-level claims in chat, or opens
- * {@link ClaimListGUI} instead when {@code --gui} is passed (any position). {@code admin} in the
+ * /claimslist [player|admin] [--chat] — opens {@link ClaimListGUI} by default (matching the
+ * "MyClaimsGUI" addon this replaces — a reported bug found players expected a menu here, not a
+ * wall of coordinates), or prints the plain-text listing instead when {@code --chat} is passed,
+ * or automatically for a non-player sender (console can't open a GUI). {@code admin} in the
  * player-name slot opens/lists the admin-claims-only view instead of a specific player's claims,
  * gated by {@code swagclaims.admin.claims} same as every other admin-claims feature.
  */
@@ -34,15 +36,19 @@ public class ClaimsListCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] rawArgs) {
-        boolean gui = false;
+        boolean forceChat = false;
         List<String> args = new ArrayList<>();
         for (String arg : rawArgs) {
-            if (arg.equalsIgnoreCase("--gui")) {
-                gui = true;
+            if (arg.equalsIgnoreCase("--chat") || arg.equalsIgnoreCase("--text")) {
+                forceChat = true;
+            } else if (arg.equalsIgnoreCase("--gui")) {
+                // still accepted for backwards compatibility / muscle memory — GUI is the
+                // default now, so this flag is simply a no-op rather than an error.
             } else {
                 args.add(arg);
             }
         }
+        boolean gui = !forceChat && sender instanceof Player;
 
         if (!args.isEmpty() && args.get(0).equalsIgnoreCase("admin")) {
             if (!sender.hasPermission("swagclaims.admin.claims")) {
@@ -171,7 +177,7 @@ public class ClaimsListCommand implements CommandExecutor, TabCompleter {
                 .map(Player::getName)
                 .collect(Collectors.toCollection(ArrayList::new));
         suggestions.add("admin");
-        suggestions.add("--gui");
+        suggestions.add("--chat");
         return suggestions.stream()
                 .filter(n -> n.toLowerCase().startsWith(partial))
                 .collect(Collectors.toList());

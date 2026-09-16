@@ -67,6 +67,14 @@ public class ClaimCommand implements CommandExecutor, TabCompleter {
 
             case "migrategp" -> new MigrateGriefPreventionCommand(plugin).onCommand(sender, command, "migrategp", rest);
 
+            case "claimban" -> new ClaimBanCommand(plugin).onCommand(sender, command, "claimban", rest);
+
+            case "unclaimban" -> new UnclaimBanCommand(plugin).onCommand(sender, command, "unclaimban", rest);
+
+            case "permissiontrust", "pt" -> new PermissionTrustCommand(plugin).onCommand(sender, command, "permissiontrust", rest);
+
+            case "extendclaim" -> new ExtendClaimCommand(plugin).onCommand(sender, command, "extendclaim", rest);
+
             default -> {
                 Player player = sender instanceof Player p ? p : null;
                 if (player != null) {
@@ -99,6 +107,10 @@ public class ClaimCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/abandonclaim " + ChatColor.GRAY + "- Delete the claim you're standing in");
         sender.sendMessage(ChatColor.YELLOW + "/abandontoplevelclaim " + ChatColor.GRAY + "- Delete a claim and its subdivisions");
         sender.sendMessage(ChatColor.YELLOW + "/abandonallclaims " + ChatColor.GRAY + "- Delete every claim you own");
+        sender.sendMessage(ChatColor.YELLOW + "/permissiontrust <player> " + ChatColor.GRAY + "- Grant a player MANAGE trust (alias /pt)");
+        sender.sendMessage(ChatColor.YELLOW + "/claimban <player> " + ChatColor.GRAY + "- Ban a player from the claim you're standing in");
+        sender.sendMessage(ChatColor.YELLOW + "/unclaimban <player> " + ChatColor.GRAY + "- Remove a player's ban from this claim");
+        sender.sendMessage(ChatColor.YELLOW + "/extendclaim <amount> <direction> " + ChatColor.GRAY + "- Extend this claim outward");
         if (sender.hasPermission("swagclaims.admin.reload")) {
             sender.sendMessage(ChatColor.RED + "/claim reload " + ChatColor.GRAY + "- Reload configuration (admin)");
         }
@@ -110,7 +122,8 @@ public class ClaimCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = Arrays.asList(
             "help", "info", "list", "trust", "untrust", "containertrust", "accesstrust",
-            "abandon", "abandontoplevel", "abandonall", "reload", "migrategp");
+            "abandon", "abandontoplevel", "abandonall", "reload", "migrategp",
+            "claimban", "unclaimban", "permissiontrust", "pt", "extendclaim");
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
@@ -120,6 +133,25 @@ public class ClaimCommand implements CommandExecutor, TabCompleter {
                     .filter(s -> s.startsWith(partial))
                     .collect(Collectors.toList());
         }
-        return List.of();
+
+        // Delegate to each subcommand's own completion logic (same objects onCommand above
+        // dispatches to) rather than duplicating it here — this used to stop completing
+        // entirely past the subcommand name, e.g. "/claim trust <tab>" suggested nothing even
+        // though the standalone "/trust <tab>" always has.
+        String sub = args[0].toLowerCase();
+        String[] rest = Arrays.copyOfRange(args, 1, args.length);
+        return switch (sub) {
+            case "list" -> new ClaimsListCommand(plugin).onTabComplete(sender, command, "claimslist", rest);
+            case "trust" -> new TrustCommand(plugin).onTabComplete(sender, command, "trust", rest);
+            case "untrust" -> new UntrustCommand(plugin).onTabComplete(sender, command, "untrust", rest);
+            case "containertrust" -> new ContainerTrustCommand(plugin).onTabComplete(sender, command, "containertrust", rest);
+            case "accesstrust" -> new AccessTrustCommand(plugin).onTabComplete(sender, command, "accesstrust", rest);
+            case "migrategp" -> new MigrateGriefPreventionCommand(plugin).onTabComplete(sender, command, "migrategp", rest);
+            case "claimban" -> new ClaimBanCommand(plugin).onTabComplete(sender, command, "claimban", rest);
+            case "unclaimban" -> new UnclaimBanCommand(plugin).onTabComplete(sender, command, "unclaimban", rest);
+            case "permissiontrust", "pt" -> new PermissionTrustCommand(plugin).onTabComplete(sender, command, "permissiontrust", rest);
+            case "extendclaim" -> new ExtendClaimCommand(plugin).onTabComplete(sender, command, "extendclaim", rest);
+            default -> List.of();
+        };
     }
 }

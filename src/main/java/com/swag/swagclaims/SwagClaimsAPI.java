@@ -52,6 +52,14 @@ import java.util.UUID;
  *       {@code trustLevel} (String — {@code ACCESS}/{@code CONTAINER}/{@code BUILD}/
  *       {@code MANAGE}). Event's {@code playerUuid} is the trusted player's UUID when
  *       {@code target} parses as one, otherwise {@code null} (public/group targets).</li>
+ *   <li><b>{@code swagclaims:claim_transferred}</b> — fired when an admin transfers ownership
+ *       of a top-level BASIC claim (via {@code /transferclaim}) to another player. Payload:
+ *       {@code claimId} (Long), {@code previousOwner} (String UUID), {@code newOwner} (String
+ *       UUID), {@code claimType} (String — always {@code BASIC}), {@code world} (String),
+ *       {@code area} (Long), {@code subdivisionsTransferred} (Integer — every direct
+ *       subdivision of the transferred claim is re-owned along with it, since a subdivision
+ *       stores its own owner copy rather than deriving it from its parent). The claim's trust
+ *       list is left untouched by a transfer. Event's {@code playerUuid} is the new owner.</li>
  * </ul>
  */
 public final class SwagClaimsAPI {

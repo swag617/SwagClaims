@@ -124,8 +124,20 @@ public class ClaimToolListener implements Listener {
         UUID uuid = player.getUniqueId();
         Claim existing = claimManager.getClaimAt(clicked.getLocation());
 
+        // Show the boundary of whatever claim is here on every tool click, not just after a
+        // successful create/resize — matches GriefPrevention's UX (reported bug: no borders
+        // ever appeared just from holding/clicking the tool inside an existing claim).
+        if (existing != null) {
+            plugin.getClaimVisualizer().show(player, existing);
+        }
+
         if (existing != null && existing.isCorner(clicked.getX(), clicked.getZ())
                 && claimManager.hasPermission(player, clicked.getLocation(), TrustLevel.MANAGE)) {
+            if (plugin.getFlagManager().isSet(existing, com.swag.swagclaims.model.ClaimFlags.NO_RESIZING)
+                    && !player.hasPermission("swagclaims.admin.claims")) {
+                plugin.getMessages().send(player, "flag.no-resizing");
+                return;
+            }
             int fixedX = (clicked.getX() == existing.getMinX()) ? existing.getMaxX() : existing.getMinX();
             int fixedZ = (clicked.getZ() == existing.getMinZ()) ? existing.getMaxZ() : existing.getMinZ();
             pendingResize.put(uuid, new ResizeSession(existing.getId(), fixedX, fixedZ));
@@ -281,6 +293,7 @@ public class ClaimToolListener implements Listener {
             return;
         }
 
+        plugin.getClaimVisualizer().show(player, claim);
         com.swag.swagclaims.command.ClaimCommandUtil.sendClaimInfo(plugin, player, claim);
     }
 }

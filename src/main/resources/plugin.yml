@@ -12,11 +12,12 @@ depend:
 softdepend:
   - Vault
   - PlaceholderAPI
+  - ItemsAdder
 
 commands:
   claim:
     description: Main SwagClaims command
-    usage: /<command> [help|info|list|trust|untrust|abandon|abandontoplevel|abandonall|reload|migrategp]
+    usage: /<command> [help|info|list|trust|untrust|abandon|abandontoplevel|abandonall|reload|migrategp|claimban|unclaimban|permissiontrust|extendclaim]
     aliases: [swagclaims, sc]
   trust:
     description: Grant a player BUILD trust in the claim you are standing in
@@ -43,8 +44,9 @@ commands:
     description: Show information about the claim you are standing in
     usage: /<command>
   claimslist:
-    description: List a player's claims, or open the claim list GUI with --gui
-    usage: /<command> [player|admin] [--gui]
+    description: Open the claim list GUI, or list a player's claims in chat with --chat
+    usage: /<command> [player|admin] [--chat]
+    aliases: [claimlist, claims]
   buyclaimblocks:
     description: Purchase claim blocks with Vault economy
     usage: /<command> <amount>
@@ -52,8 +54,8 @@ commands:
     description: Sell unused claim blocks for Vault economy currency
     usage: /<command> <amount>
   claimblocks:
-    description: Show your claim block totals, or gift some with "send"
-    usage: /<command> [send]
+    description: Show your claim block totals, gift some with "send", or (admin) grant some with "give"
+    usage: /<command> [send|give <player> <amount>]
   subdivideclaims:
     description: Toggle subdivision creation mode for the claim tool
     usage: /<command>
@@ -66,6 +68,12 @@ commands:
   deleteallclaims:
     description: Delete every claim owned by a player
     usage: /<command> <player>
+  transferclaim:
+    description: Transfer ownership of a claim to another player
+    usage: /<command> [id] <player>
+  claimrename:
+    description: Set or clear the nickname of the claim you are standing in
+    usage: /<command> <name|clear>
   siege:
     description: Begin a siege against another player's claim
     usage: /<command> [player]
@@ -78,6 +86,19 @@ commands:
   sendclaimblocks:
     description: Gift some of your spare claim blocks to another player or everyone online
     usage: /<command>
+  claimban:
+    description: Ban a player from the claim you are standing in, overriding any trust they hold
+    usage: /<command> <player>
+  unclaimban:
+    description: Remove a player's ban from the claim you are standing in
+    usage: /<command> <player>
+  permissiontrust:
+    description: Grant a player MANAGE trust (able to manage other players' trust) in the claim you are standing in
+    usage: /<command> <player>
+    aliases: [pt]
+  extendclaim:
+    description: Extend the claim you are standing in outward by a number of blocks in a compass direction
+    usage: /<command> <amount> <north|south|east|west>
 
 permissions:
   swagclaims.*:
@@ -144,6 +165,18 @@ permissions:
     description: Allows gifting spare claim blocks to another player or everyone online
     default: true
 
+  swagclaims.rename:
+    description: Allows renaming claims you can manage
+    default: true
+
+  swagclaims.claimban:
+    description: Allows banning/unbanning players from claims you can manage (/claimban, /unclaimban)
+    default: true
+
+  swagclaims.extendclaim:
+    description: Allows extending claims you can manage with /extendclaim
+    default: true
+
   swagclaims.admin:
     description: Administrative permissions
     default: op
@@ -154,6 +187,9 @@ permissions:
       swagclaims.admin.deleteclaim: true
       swagclaims.admin.deleteallclaims: true
       swagclaims.admin.migrate: true
+      swagclaims.admin.transferclaim: true
+      swagclaims.admin.claimblocks.give: true
+      swagclaims.admin.claimblocks.take: true
 
   swagclaims.admin.claims:
     description: Allows creating/modifying admin claims and bypassing trust checks
@@ -177,4 +213,16 @@ permissions:
 
   swagclaims.admin.migrate:
     description: Allows running the one-time /swagclaims migrategp GriefPrevention data importer
+    default: op
+
+  swagclaims.admin.transferclaim:
+    description: Allows transferring ownership of any claim to another player
+    default: op
+
+  swagclaims.admin.claimblocks.give:
+    description: Allows granting claim blocks to any player via /claimblocks give
+    default: op
+
+  swagclaims.admin.claimblocks.take:
+    description: Allows removing bonus claim blocks from any player via /claimblocks take
     default: op

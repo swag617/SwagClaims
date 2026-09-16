@@ -9,7 +9,9 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -34,6 +36,26 @@ public final class ClaimCommandUtil {
             return null;
         }
         return claim;
+    }
+
+    /** Online player names starting with {@code partial} (case-insensitive) — shared tab-complete helper. */
+    public static List<String> players(String partial) {
+        String lower = partial.toLowerCase();
+        List<String> names = new ArrayList<>();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (p.getName().toLowerCase().startsWith(lower)) names.add(p.getName());
+        }
+        return names;
+    }
+
+    /** Fixed options starting with {@code partial} (case-insensitive) — shared tab-complete helper. */
+    public static List<String> filter(String partial, List<String> options) {
+        String lower = partial.toLowerCase();
+        List<String> result = new ArrayList<>();
+        for (String option : options) {
+            if (option.toLowerCase().startsWith(lower)) result.add(option);
+        }
+        return result;
     }
 
     /** True if the player may manage (grant/revoke trust, resize, abandon) this claim. */
@@ -180,6 +202,10 @@ public final class ClaimCommandUtil {
      */
     public static void sendClaimInfo(SwagClaimsPlugin plugin, Player player, Claim claim) {
         plugin.getMessages().sendRaw(player, "tool.investigate-header", null);
+
+        if (claim.getName() != null && !claim.getName().isBlank()) {
+            plugin.getMessages().sendRaw(player, "tool.investigate-name", ph("name", claim.getName()));
+        }
 
         if (claim.isAdminClaim()) {
             plugin.getMessages().sendRaw(player, "tool.investigate-admin-claim", null);

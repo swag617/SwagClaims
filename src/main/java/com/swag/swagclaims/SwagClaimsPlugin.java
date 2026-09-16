@@ -8,20 +8,26 @@ import com.swag.swagclaims.command.AbandonTopLevelClaimCommand;
 import com.swag.swagclaims.command.AccessTrustCommand;
 import com.swag.swagclaims.command.AdminClaimsCommand;
 import com.swag.swagclaims.command.BuyClaimBlocksCommand;
+import com.swag.swagclaims.command.ClaimBanCommand;
 import com.swag.swagclaims.command.ClaimBlocksCommand;
 import com.swag.swagclaims.command.ClaimCommand;
 import com.swag.swagclaims.command.ClaimInfoCommand;
+import com.swag.swagclaims.command.ClaimRenameCommand;
 import com.swag.swagclaims.command.ClaimsListCommand;
 import com.swag.swagclaims.command.ContainerTrustCommand;
 import com.swag.swagclaims.command.ClaimFlagCommand;
 import com.swag.swagclaims.command.DeleteAllClaimsCommand;
 import com.swag.swagclaims.command.DeleteClaimCommand;
+import com.swag.swagclaims.command.ExtendClaimCommand;
+import com.swag.swagclaims.command.PermissionTrustCommand;
 import com.swag.swagclaims.command.SellClaimBlocksCommand;
 import com.swag.swagclaims.command.SendClaimBlocksCommand;
 import com.swag.swagclaims.command.SiegeCommand;
 import com.swag.swagclaims.command.SubdivideClaimsCommand;
+import com.swag.swagclaims.command.TransferClaimCommand;
 import com.swag.swagclaims.command.TrustCommand;
 import com.swag.swagclaims.command.TrustMenuCommand;
+import com.swag.swagclaims.command.UnclaimBanCommand;
 import com.swag.swagclaims.command.UntrustCommand;
 import com.swag.swagclaims.config.ClaimsConfig;
 import com.swag.swagclaims.config.ConfigMigrator;
@@ -32,6 +38,7 @@ import com.swag.swagclaims.listener.ClaimFlagListener;
 import com.swag.swagclaims.listener.ClaimProtectionListener;
 import com.swag.swagclaims.listener.ClaimToolListener;
 import com.swag.swagclaims.listener.ClaimTransitionListener;
+import com.swag.swagclaims.listener.CommandRestrictionListener;
 import com.swag.swagclaims.listener.GUIListener;
 import com.swag.swagclaims.listener.PlayerDataListener;
 import com.swag.swagclaims.listener.PvPProtectionListener;
@@ -167,6 +174,7 @@ public class SwagClaimsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerDataListener(this, claimManager), this);
         getServer().getPluginManager().registerEvents(new PvPProtectionListener(this, claimManager), this);
         getServer().getPluginManager().registerEvents(new SiegeListener(this, claimManager), this);
+        getServer().getPluginManager().registerEvents(new CommandRestrictionListener(this, claimManager), this);
 
         this.claimFlagListener = new ClaimFlagListener(this, claimManager, flagManager);
         getServer().getPluginManager().registerEvents(claimFlagListener, this);
@@ -191,15 +199,21 @@ public class SwagClaimsPlugin extends JavaPlugin {
         setExecutor("claimslist", new ClaimsListCommand(this), true);
         setExecutor("buyclaimblocks", new BuyClaimBlocksCommand(this), false);
         setExecutor("sellclaimblocks", new SellClaimBlocksCommand(this), false);
-        setExecutor("claimblocks", new ClaimBlocksCommand(this), false);
+        setExecutor("claimblocks", new ClaimBlocksCommand(this), true);
         setExecutor("subdivideclaims", new SubdivideClaimsCommand(this), false);
         setExecutor("adminclaims", new AdminClaimsCommand(this), false);
         setExecutor("deleteclaim", new DeleteClaimCommand(this), false);
         setExecutor("deleteallclaims", new DeleteAllClaimsCommand(this), false);
+        setExecutor("transferclaim", new TransferClaimCommand(this), true);
+        setExecutor("claimrename", new ClaimRenameCommand(this), true);
         setExecutor("siege", new SiegeCommand(this), true);
         setExecutor("claimflag", new ClaimFlagCommand(this), true);
         setExecutor("trustmenu", new TrustMenuCommand(this), false);
         setExecutor("sendclaimblocks", new SendClaimBlocksCommand(this), false);
+        setExecutor("claimban", new ClaimBanCommand(this), true);
+        setExecutor("unclaimban", new UnclaimBanCommand(this), true);
+        setExecutor("permissiontrust", new PermissionTrustCommand(this), true);
+        setExecutor("extendclaim", new ExtendClaimCommand(this), true);
     }
 
     private void setExecutor(String name, Object executor, boolean withTabCompleter) {

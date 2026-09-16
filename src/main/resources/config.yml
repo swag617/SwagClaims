@@ -148,7 +148,7 @@ titles:
 # Admin claims browser mounted through SwagAPI's shared web server at
 # /swagapi/swagclaims/ (requires SwagAPI's IWebService to be running). The main
 # page lists every claim on the server with its owner/world/coordinates/size/
-# trust list (read-only — in-game GUIs, /trustmenu and /claimslist --gui, cover
+# trust list (read-only — in-game GUIs, /trustmenu and /claimslist, cover
 # editing that); /swagapi/swagclaims/settings is the one write-capable page,
 # used to tune the claim-expiration policy below without editing this file.
 web:

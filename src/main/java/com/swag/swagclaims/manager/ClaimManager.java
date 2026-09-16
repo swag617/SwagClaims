@@ -267,7 +267,9 @@ public class ClaimManager {
             claimsById.remove(tempId);
             candidate.setId(realId);
             claimsById.put(realId, candidate);
-            publishClaimCreated(candidate);
+            // publishClaimCreated fires a Bukkit event, which Paper requires to happen on the
+            // main thread — this callback runs on the async DB thread pool.
+            Bukkit.getScheduler().runTask(plugin, () -> publishClaimCreated(candidate));
         }).exceptionally(ex -> {
             plugin.getLogger().log(Level.SEVERE, "Failed to persist newly created claim — rolling back from cache.", ex);
             claimsById.remove(tempId);
@@ -423,6 +425,71 @@ public class ClaimManager {
         toData.setBonusBlocks(toData.getBonusBlocks() + amount);
         db.savePlayerData(toData);
         return true;
+    }
+
+    /**
+     * Admin grant of {@code amount} bonus claim blocks to {@code target}, offline-safe. Unlike
+     * {@link #sendClaimBlocks}, this credits without debiting anyone.
+     *
+     * <p>Deliberately does NOT use {@link #getPlayerData} directly — that method's
+     * {@code computeIfAbsent} would silently default-construct a fresh {@link PlayerClaimData}
+     * (wiping any real persisted row) for a target who is offline and hasn't been cached this
+     * session. Instead: use the in-memory cache if already warm (the target is online or was
+     * recently online this session), otherwise load their real row from the database first —
+     * {@code null} only means they truly have no row yet (never played, or never had claim data
+     * saved), in which case a fresh default is actually correct.</p>
+     */
+    public CompletableFuture<Void> giveClaimBlocks(UUID target, long amount) {
+        if (target == null || amount == 0) return CompletableFuture.completedFuture(null);
+
+        PlayerClaimData cached = playerData.get(target);
+        if (cached != null) {
+            cached.setBonusBlocks(cached.getBonusBlocks() + amount);
+            db.savePlayerData(cached);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return db.loadPlayerData(target).thenAccept(loaded -> {
+            PlayerClaimData data = loaded;
+            if (data == null) {
+                data = new PlayerClaimData(target);
+                data.setAccruedBlocks(config.getInitialBlocks());
+            }
+            data.setBonusBlocks(data.getBonusBlocks() + amount);
+            db.savePlayerData(data);
+            cachePlayerData(data);
+        });
+    }
+
+    /**
+     * Removes bonus claim blocks previously granted via {@link #giveClaimBlocks} — only ever
+     * reduces {@code bonusBlocks}, never a player's naturally accrued (playtime) blocks, and
+     * clamps at 0 rather than going negative. Returns how many were actually removed, which may
+     * be less than requested if the player didn't have that many bonus blocks.
+     */
+    public CompletableFuture<Long> takeClaimBlocks(UUID target, long amount) {
+        if (target == null || amount <= 0) return CompletableFuture.completedFuture(0L);
+
+        PlayerClaimData cached = playerData.get(target);
+        if (cached != null) {
+            long actual = Math.min(amount, Math.max(0, cached.getBonusBlocks()));
+            cached.setBonusBlocks(cached.getBonusBlocks() - actual);
+            db.savePlayerData(cached);
+            return CompletableFuture.completedFuture(actual);
+        }
+
+        return db.loadPlayerData(target).thenApply(loaded -> {
+            PlayerClaimData data = loaded;
+            if (data == null) {
+                data = new PlayerClaimData(target);
+                data.setAccruedBlocks(config.getInitialBlocks());
+            }
+            long actual = Math.min(amount, Math.max(0, data.getBonusBlocks()));
+            data.setBonusBlocks(data.getBonusBlocks() - actual);
+            db.savePlayerData(data);
+            cachePlayerData(data);
+            return actual;
+        });
     }
 
     // ── Trust ────────────────────────────────────────────────────────────────
@@ -594,8 +661,83 @@ public class ClaimManager {
         return total;
     }
 
+    // ── Ownership transfer / renaming ───────────────────────────────────────
+
+    /**
+     * Transfers ownership of a top-level BASIC claim to {@code newOwner}, bringing along every
+     * direct subdivision nested inside it. Subdivisions store their own {@code owner_uuid} copy
+     * (set from the parent's at creation time — see {@link #createSubdivision}) rather than
+     * deriving it dynamically from the parent, and every trust/ownership check
+     * ({@link #hasPermission}, {@link ClaimCommandUtil#canManage}-style checks) reads a claim's
+     * own {@code ownerUuid} field directly. Leaving a subdivision pointed at the old owner after
+     * a transfer would silently keep that owner's full owner-level access to it, so every direct
+     * subdivision's owner is updated right alongside the top-level claim.
+     *
+     * <p>Deliberately does not touch the claim's trust list — the new owner may want to prune it
+     * themselves, and pruning it automatically would destroy information the new owner might
+     * still want (e.g. builders the previous owner had trusted). Callers (see
+     * {@code TransferClaimCommand}) are responsible for validating the claim is a top-level BASIC
+     * claim with a real owner before calling this.
+     *
+     * @return the number of subdivisions transferred along with the top-level claim
+     */
+    public int transferClaim(Claim claim, UUID newOwner) {
+        UUID previousOwner = claim.getOwnerUuid();
+
+        claim.setOwnerUuid(newOwner);
+        db.updateClaimOwner(claim.getId(), newOwner);
+
+        int subdivisionsTransferred = 0;
+        for (Claim sub : claimsById.values()) {
+            if (sub.getParentId() != null && sub.getParentId() == claim.getId()) {
+                sub.setOwnerUuid(newOwner);
+                db.updateClaimOwner(sub.getId(), newOwner);
+                subdivisionsTransferred++;
+            }
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("claimId", claim.getId());
+        payload.put("previousOwner", previousOwner != null ? previousOwner.toString() : null);
+        payload.put("newOwner", newOwner != null ? newOwner.toString() : null);
+        payload.put("claimType", claim.getClaimType().name());
+        payload.put("world", claim.getWorld());
+        payload.put("area", claim.getArea());
+        payload.put("subdivisionsTransferred", subdivisionsTransferred);
+        publishEvent("swagclaims:claim_transferred", payload, newOwner);
+
+        return subdivisionsTransferred;
+    }
+
+    /**
+     * Sets (or, with {@code name == null}, clears) a claim's display nickname. Purely a display
+     * concern — unlike {@link #transferClaim}, this doesn't touch ownership, trust, or claim
+     * blocks at all, so no event is published.
+     */
+    public void renameClaim(Claim claim, String name) {
+        claim.setName(name);
+        db.updateClaimName(claim.getId(), name);
+    }
+
     public ClaimsConfig getConfig() {
         return config;
+    }
+
+    // ── Claim bans (/claimban, /unclaimban) ─────────────────────────────────
+
+    /** Bans a player from a specific claim — they are denied entry regardless of any trust they hold (see ClaimTransitionListener). */
+    public void banPlayer(Claim claim, UUID target) {
+        claim.banPlayer(target);
+        db.saveBan(claim.getId(), target);
+    }
+
+    public void unbanPlayer(Claim claim, UUID target) {
+        claim.unbanPlayer(target);
+        db.deleteBan(claim.getId(), target);
+    }
+
+    public boolean isBanned(Claim claim, UUID uuid) {
+        return claim != null && claim.isBanned(uuid);
     }
 
     // ── SwagAPI event bus publishing ────────────────────────────────────────

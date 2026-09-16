@@ -235,7 +235,7 @@ public class ClaimsWebHttpHandler implements HttpHandler {
                 + "<style>" + PAGE_CSS + "</style></head><body>"
                 + "<h1>SwagClaims &mdash; Admin Claims Browser</h1>"
                 + "<p class='sub'>Read-only. " + claims.size() + " claim(s) total. "
-                + "In-game GUIs (/trustmenu, /claimslist --gui) handle editing.</p>"
+                + "In-game GUIs (/trustmenu, /claimslist) handle editing.</p>"
                 + "<div class='nav'><a href='" + MOUNT + "'>Claims Browser</a>"
                 + "<a href='" + MOUNT + "settings'>Expiration Settings</a></div>"
                 + "<table><thead><tr>"

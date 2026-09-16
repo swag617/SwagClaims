@@ -7,9 +7,11 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 
 import java.io.File;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -28,7 +30,7 @@ import java.util.logging.Level;
  * resolved the same way (plugins/GPFlags/flags.yml), independent of a custom {@code --source}
  * override, since GPFlags is a separate plugin whose own folder doesn't move with GriefPrevention's.
  */
-public class MigrateGriefPreventionCommand implements CommandExecutor {
+public class MigrateGriefPreventionCommand implements CommandExecutor, TabCompleter {
 
     private static final AtomicBoolean RUNNING = new AtomicBoolean(false);
 
@@ -121,5 +123,13 @@ public class MigrateGriefPreventionCommand implements CommandExecutor {
             sender.sendMessage(ChatColor.GRAY + "... and " + (result.warnings.size() - shown)
                     + " more — see the full report file: " + (result.reportFile != null ? result.reportFile.getName() : "n/a"));
         }
+    }
+
+    /** Both flags are valid at any position (a free-form parsing loop, not positional args), so
+     *  every arg position suggests whichever flag isn't already present earlier in the line. */
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
+        String partial = args.length > 0 ? args[args.length - 1] : "";
+        return ClaimCommandUtil.filter(partial, List.of("--dry-run", "--source"));
     }
 }
