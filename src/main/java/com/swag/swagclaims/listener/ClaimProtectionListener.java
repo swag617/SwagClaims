@@ -324,6 +324,33 @@ public class ClaimProtectionListener implements Listener {
     }
 
     /**
+     * Right-clicking an ItemsAdder "CustomEntity" — decorative/model-driven companions (e.g. the
+     * reported "flying fairy" familiar) that are spawned via IA's entities.yml registry rather
+     * than its Furniture API, so {@link #onFurnitureInteract} never sees them. ItemsAdder exposes
+     * no dedicated interact event for this registry (only {@code CustomEntityDeathEvent}), so the
+     * underlying vanilla entity's {@link PlayerInteractEntityEvent} is the only available hook.
+     * Excludes anything already identified as furniture to avoid double-cancelling/double-messaging
+     * the same click. Gated at ACCESS, matching item frames/armor stands/furniture above.
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onCustomEntityInteract(PlayerInteractEntityEvent event) {
+        if (!dev.lone.itemsadder.api.CustomEntity.isCustomEntity(event.getRightClicked())) return;
+        if (dev.lone.itemsadder.api.CustomFurniture.byAlreadySpawned(event.getRightClicked()) != null) return;
+
+        Player player = event.getPlayer();
+        if (bypasses(player)) return;
+
+        Location loc = event.getRightClicked().getLocation();
+        Claim claim = claimManager.getClaimAt(loc);
+        if (claim == null) return;
+
+        if (!claimManager.hasPermission(player, loc, TrustLevel.ACCESS)) {
+            event.setCancelled(true);
+            sendDenied(player, claim, "protection.no-access");
+        }
+    }
+
+    /**
      * Editing sign text — reported: players without trust could change the text on existing signs
      * in claimed areas. Vanilla doesn't gate re-editing an unwaxed sign by permission at all, so
      * this was wide open. Gated at BUILD, matching block-place/break's trust level.
@@ -458,7 +485,37 @@ public class ClaimProtectionListener implements Listener {
                 || Tag.TRAPDOORS.isTagged(type)
                 || Tag.FENCE_GATES.isTagged(type)
                 || Tag.BUTTONS.isTagged(type)
-                || type == Material.LEVER;
+                || type == Material.LEVER
+                || type == Material.NOTE_BLOCK
+                // Jukeboxes, chiseled bookshelves and lecterns are all InventoryHolders in the
+                // Paper API (Jukebox/ChiseledBookshelf/Lectern implement TileStateInventoryHolder)
+                // but NOT org.bukkit.block.Container — the "containers are gated by onInventoryOpen
+                // instead" bypass below never matches them, and inserting/ejecting a disc, placing/
+                // taking a book from a bookshelf slot, or taking a lectern's book are all plain
+                // right-click PlayerInteractEvents with no InventoryOpenEvent in between (reported:
+                // untrusted players could eject jukebox discs and empty bookshelves/lecterns).
+                // Cancelling this event also blocks lectern page-turning and book-insertion, since
+                // Paper's LecternBlock#use() (where all three live) never runs once cancelled —
+                // same mechanism that already protects doors/buttons/levers above.
+                || type == Material.JUKEBOX
+                || type == Material.CHISELED_BOOKSHELF
+                || type == Material.LECTERN
+                // Beehives/nests and composters yield a real resource (honey/honeycomb, bonemeal)
+                // to whoever interacts — a theft vector identical in spirit to containers.
+                || type == Material.BEE_NEST
+                || type == Material.BEEHIVE
+                || type == Material.COMPOSTER
+                // Cauldrons hold no items but their fill level is persistent block state that other
+                // builds (auto-brewers, redstone detectors) rely on — same anti-grief rationale as
+                // pressure plates above, not theft.
+                || type == Material.CAULDRON
+                || type == Material.WATER_CAULDRON
+                || type == Material.LAVA_CAULDRON
+                || type == Material.POWDER_SNOW_CAULDRON
+                // Charging/using a respawn anchor sets the interacting player's spawn point inside
+                // someone else's claim — a real nuisance (GriefPrevention gates this for the same
+                // reason), even though no item changes hands.
+                || type == Material.RESPAWN_ANCHOR;
     }
 
     private void sendDenied(Player player, Claim claim, String messageKey) {
