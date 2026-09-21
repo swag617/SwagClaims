@@ -16,6 +16,7 @@ import org.bukkit.entity.AbstractVillager;
 import org.bukkit.entity.AbstractWindCharge;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Ghast;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
@@ -32,11 +33,11 @@ import org.bukkit.event.block.BlockFadeEvent;
 import org.bukkit.event.block.BlockFormEvent;
 import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.block.BlockGrowEvent;
-import org.bukkit.event.block.BlockPhysicsEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.block.LeavesDecayEvent;
 import org.bukkit.event.block.SculkBloomEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
@@ -282,14 +283,25 @@ public class ClaimFlagListener implements Listener {
     // ── noblockgravity ──────────────────────────────────────────────────────
 
     /**
-     * Cancels the physics update that turns a gravity-affected block into a falling-block entity.
-     * This is the same mechanism GriefPrevention-style plugins use for a "gravity" flag — there is
-     * no dedicated "block is about to fall" event, and cancelling {@code EntityChangeBlockEvent}
-     * after the fact leaves an orphaned FallingBlock entity hanging in the air.
+     * Cancels the transition of a gravity-affected block into a {@code FallingBlock} entity.
+     *
+     * <p>This previously listened on {@link BlockPhysicsEvent}, filtering by
+     * {@code isGravityAffected(event.getChangedType())} — that never actually stopped anything:
+     * cancelling a physics-check event only suppresses that one recheck, not the scheduled block
+     * tick that later spawns the falling entity (sand/gravel/concrete powder/anvils don't fall via
+     * the physics-check codepath at all), so the flag had zero observable effect in either state
+     * (reported: toggling it on didn't stop falling blocks, toggling it off "also" showed no
+     * change — both are explained by the old handler never actually intercepting the fall).
+     * {@link EntityChangeBlockEvent}, filtered to {@link EntityType#FALLING_BLOCK}, fires at the
+     * moment the source block would disappear to spawn the falling entity — cancelling it here
+     * leaves the block in place and no entity ever spawns, mirroring the enderman/silverfish
+     * griefing guard in {@code ClaimProtectionListener#onEntityChangeBlock} which uses the same
+     * event for a different entity-type filter.
      */
     @EventHandler(ignoreCancelled = true)
-    public void onBlockPhysics(BlockPhysicsEvent event) {
-        if (!isGravityAffected(event.getChangedType())) return;
+    public void onFallingBlockForm(EntityChangeBlockEvent event) {
+        if (event.getEntityType() != EntityType.FALLING_BLOCK) return;
+        if (!isGravityAffected(event.getBlock().getType())) return;
         if (flagManager.isSetAt(event.getBlock().getLocation(), ClaimFlags.NO_BLOCK_GRAVITY)) {
             event.setCancelled(true);
         }

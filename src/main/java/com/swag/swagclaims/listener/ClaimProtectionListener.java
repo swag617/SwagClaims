@@ -31,7 +31,9 @@ import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityInteractEvent;
+import org.bukkit.event.entity.EntityPlaceEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.hanging.HangingPlaceEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
@@ -283,6 +285,53 @@ public class ClaimProtectionListener implements Listener {
         if (!claimManager.hasPermission(player, loc, TrustLevel.ACCESS)) {
             event.setCancelled(true);
             sendDenied(player, claim, "protection.no-access");
+        }
+    }
+
+    /**
+     * Placing an armor stand, end crystal, or other non-hanging entity via item use — these are
+     * entities spawned into the world, not a block state change, so {@link #onPlace}
+     * ({@link BlockPlaceEvent}) never fires for them at all. Reported: untrusted players could
+     * plant armor stands (and, by the same gap, anything else routed through this event) inside
+     * someone else's claim with zero trust check. Gated at BUILD, matching normal block placement
+     * — placing a new entity into a claim is the same category of action as placing a new block.
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onEntityPlace(EntityPlaceEvent event) {
+        Player player = event.getPlayer();
+        if (player == null || bypasses(player)) return;
+
+        Location loc = event.getEntity().getLocation();
+        Claim claim = claimManager.getClaimAt(loc);
+        if (claim == null) return;
+
+        if (!claimManager.hasPermission(player, loc, TrustLevel.BUILD)) {
+            event.setCancelled(true);
+            sendDenied(player, claim, "protection.no-build");
+        }
+    }
+
+    /**
+     * Placing a hanging entity (item frame, glow item frame, painting) — the same placement gap as
+     * {@link #onEntityPlace} above, but hanging entities go through their own event hierarchy
+     * ({@link HangingPlaceEvent}) instead of {@link EntityPlaceEvent}. Without this, a player with
+     * no trust at all could hang new item frames/paintings on another claim's walls even though
+     * interacting with an existing frame ({@link #onFrameInteract}) was already correctly gated.
+     * {@code getPlayer()} can be null here (e.g. a dispenser mechanically placing a frame) — those
+     * placements aren't a player trust question, so they're left alone.
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onHangingPlace(HangingPlaceEvent event) {
+        Player player = event.getPlayer();
+        if (player == null || bypasses(player)) return;
+
+        Location loc = event.getEntity().getLocation();
+        Claim claim = claimManager.getClaimAt(loc);
+        if (claim == null) return;
+
+        if (!claimManager.hasPermission(player, loc, TrustLevel.BUILD)) {
+            event.setCancelled(true);
+            sendDenied(player, claim, "protection.no-build");
         }
     }
 
