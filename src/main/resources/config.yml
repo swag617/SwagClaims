@@ -26,6 +26,18 @@ abandon-return-ratio: 1.0
 # How long (in seconds) claim boundary visualizations stay visible.
 visualization-duration-seconds: 10
 
+# ── Tool border preview ──────────────────────────────────────────────────
+# While holding the modification or investigation tool, nearby claim borders are shown
+# continuously via per-player particles (green = your claim, red = someone else's, gold = an
+# admin claim). This is separate from the glowing-block pulse above, which still fires on
+# tool clicks — this is the passive "just holding it" preview.
+tool-border-preview:
+  enabled: true
+  # How often (in ticks) the preview refreshes for each player holding a claim tool. 20 ticks = 1 second.
+  interval-ticks: 15
+  # Only claims within this many blocks of the player are rendered.
+  radius: 48
+
 # ── GUI ───────────────────────────────────────────────────────────────────
 gui:
   # SimpleDateFormat pattern used for created/last-active timestamps in the claim list GUI.

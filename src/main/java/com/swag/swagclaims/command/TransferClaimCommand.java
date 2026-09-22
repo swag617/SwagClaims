@@ -73,8 +73,20 @@ public class TransferClaimCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(plugin.getMessages().getPrefix() + plugin.getMessages().get("admin.transfer-is-subdivision"));
             return true;
         }
-        if (claim.getClaimType() != ClaimType.BASIC || claim.getOwnerUuid() == null) {
+
+        boolean isAdminClaim = claim.getClaimType() == ClaimType.ADMIN;
+        if (claim.getClaimType() != ClaimType.BASIC && !isAdminClaim) {
+            // Not reachable in practice (a top-level claim is always BASIC or ADMIN — subdivisions
+            // are caught above), but guarded rather than assumed.
             sender.sendMessage(plugin.getMessages().getPrefix() + plugin.getMessages().get("admin.transfer-not-basic"));
+            return true;
+        }
+        if (isAdminClaim && !sender.hasPermission("swagclaims.admin.transferclaim.admin")) {
+            // Transferring an admin claim converts it to a player-owned BASIC claim, which is a
+            // bigger deal than moving an already-player-owned claim between two players — gate it
+            // behind its own permission on top of the base swagclaims.admin.transferclaim check
+            // above, rather than silently folding it into the "not basic" rejection.
+            sender.sendMessage(plugin.getMessages().getPrefix() + plugin.getMessages().get("admin.transfer-admin-permission"));
             return true;
         }
 
@@ -90,9 +102,14 @@ public class TransferClaimCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        UUID previousOwnerUuid = claim.getOwnerUuid();
-        OfflinePlayer previousOwner = Bukkit.getOfflinePlayer(previousOwnerUuid);
-        String previousOwnerName = previousOwner.getName() != null ? previousOwner.getName() : previousOwnerUuid.toString();
+        UUID previousOwnerUuid = claim.getOwnerUuid(); // null for an admin claim
+        String previousOwnerName;
+        if (previousOwnerUuid != null) {
+            OfflinePlayer previousOwner = Bukkit.getOfflinePlayer(previousOwnerUuid);
+            previousOwnerName = previousOwner.getName() != null ? previousOwner.getName() : previousOwnerUuid.toString();
+        } else {
+            previousOwnerName = plugin.getMessages().get("protection.admin-claim-owner");
+        }
         OfflinePlayer newOwner = Bukkit.getOfflinePlayer(newOwnerUuid);
         String newOwnerName = newOwner.getName() != null ? newOwner.getName() : targetName;
 

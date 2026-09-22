@@ -128,6 +128,7 @@ public class SwagClaimsPlugin extends JavaPlugin {
             registerCommands();
             startAutosaveTask();
             startAccrualTask();
+            startBorderPreviewTask();
 
             this.expirationManager = new ExpirationManager(this, claimManager, databaseManager, claimsConfig, vaultIntegration);
             expirationManager.start();
@@ -250,6 +251,20 @@ public class SwagClaimsPlugin extends JavaPlugin {
             if (claimManager == null) return;
             claimManager.accrueBlocksForOnlinePlayers();
         }, intervalTicks, intervalTicks);
+    }
+
+    /**
+     * Periodically renders nearby claim borders (via particles) to every online player holding a
+     * claim tool. Interval is read once at startup, same as {@link #startAccrualTask()} — a
+     * {@code /claim reload} won't pick up a changed {@code tool-border-preview.interval-ticks}
+     * without a restart, matching that existing precedent.
+     */
+    private void startBorderPreviewTask() {
+        if (!claimsConfig.isBorderPreviewEnabled()) return;
+        long interval = claimsConfig.getBorderPreviewIntervalTicks();
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            if (claimToolListener != null) claimToolListener.renderBorderPreviews();
+        }, interval, interval);
     }
 
     /** Reloads config.yml and messages.yml (used by /claim reload). */

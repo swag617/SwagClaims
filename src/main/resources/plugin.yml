@@ -188,6 +188,7 @@ permissions:
       swagclaims.admin.deleteallclaims: true
       swagclaims.admin.migrate: true
       swagclaims.admin.transferclaim: true
+      swagclaims.admin.transferclaim.admin: true
       swagclaims.admin.claimblocks.give: true
       swagclaims.admin.claimblocks.take: true
 
@@ -216,7 +217,11 @@ permissions:
     default: op
 
   swagclaims.admin.transferclaim:
-    description: Allows transferring ownership of any claim to another player
+    description: Allows transferring ownership of a basic player-owned claim to another player
+    default: op
+
+  swagclaims.admin.transferclaim.admin:
+    description: Allows transferring an administrator-owned claim to a player (converts it to a basic claim owned by them)
     default: op
 
   swagclaims.admin.claimblocks.give:

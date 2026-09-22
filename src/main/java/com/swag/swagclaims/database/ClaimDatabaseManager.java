@@ -287,6 +287,21 @@ public class ClaimDatabaseManager {
         });
     }
 
+    /** Updates a claim's type (used when transferring an admin claim converts it to BASIC — see ClaimManager#transferClaim). */
+    public void updateClaimType(long claimId, ClaimType type) {
+        db.executeAsync(() -> {
+            String sql = "UPDATE swagclaims_claims SET claim_type = ? WHERE id = ?";
+            try (Connection conn = db.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, type.name());
+                ps.setLong(2, claimId);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to update claim type for claim #" + claimId, e);
+            }
+        });
+    }
+
     /** Updates a claim's display nickname ({@code null} clears it back to unset). */
     public void updateClaimName(long claimId, String name) {
         db.executeAsync(() -> {

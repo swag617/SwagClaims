@@ -67,6 +67,22 @@ public class ClaimsConfig {
         return Math.max(1, plugin.getConfig().getInt("visualization-duration-seconds", 10));
     }
 
+    // ── Tool border preview (passive, while holding a claim tool) ──────────
+
+    public boolean isBorderPreviewEnabled() {
+        return plugin.getConfig().getBoolean("tool-border-preview.enabled", true);
+    }
+
+    /** How often (in ticks) the preview refreshes for each player holding a claim tool. */
+    public int getBorderPreviewIntervalTicks() {
+        return Math.max(1, plugin.getConfig().getInt("tool-border-preview.interval-ticks", 15));
+    }
+
+    /** Only claims within this many blocks of the player are rendered. */
+    public int getBorderPreviewRadius() {
+        return Math.max(1, plugin.getConfig().getInt("tool-border-preview.radius", 48));
+    }
+
     // ── GUI ─────────────────────────────────────────────────────────────────
 
     /** {@link java.text.SimpleDateFormat} pattern used for created/last-active timestamps in {@code ClaimListGUI}. */

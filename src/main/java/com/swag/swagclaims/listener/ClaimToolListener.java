@@ -279,6 +279,46 @@ public class ClaimToolListener implements Listener {
         }
     }
 
+    /**
+     * Called on a fixed interval (see {@code SwagClaimsPlugin#startBorderPreviewTask}) for every
+     * online player holding either claim tool: renders every nearby claim's boundary to them via
+     * per-player particles (see {@link com.swag.swagclaims.util.ClaimVisualizer#showBorderParticles}).
+     * A linear scan over every loaded claim per tool-holding player — the same "fine for the
+     * claim counts a single server accumulates" reasoning {@link ClaimManager#getClaimAt} already
+     * relies on, bounded further here since it only runs for players actually holding a tool and
+     * only considers claims within {@code tool-border-preview.radius} blocks.
+     */
+    public void renderBorderPreviews() {
+        Material modTool = plugin.getClaimsConfig().getModificationTool();
+        Material investigateTool = plugin.getClaimsConfig().getInvestigationTool();
+        double radius = plugin.getClaimsConfig().getBorderPreviewRadius();
+        double radiusSquared = radius * radius;
+
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            Material held = player.getInventory().getItemInMainHand().getType();
+            if (held != modTool && held != investigateTool) continue;
+
+            Location loc = player.getLocation();
+            String world = player.getWorld().getName();
+            for (Claim claim : claimManager.getAllClaims()) {
+                if (!claim.getWorld().equalsIgnoreCase(world)) continue;
+                if (!withinRadius(claim, loc, radiusSquared)) continue;
+                plugin.getClaimVisualizer().showBorderParticles(player, claim);
+            }
+        }
+    }
+
+    /** True if the nearest point of the claim's horizontal bounds is within {@code radiusSquared} of {@code loc}. */
+    private boolean withinRadius(Claim claim, Location loc, double radiusSquared) {
+        double x = loc.getX();
+        double z = loc.getZ();
+        double clampedX = Math.max(claim.getMinX(), Math.min(x, claim.getMaxX() + 1.0));
+        double clampedZ = Math.max(claim.getMinZ(), Math.min(z, claim.getMaxZ() + 1.0));
+        double dx = x - clampedX;
+        double dz = z - clampedZ;
+        return (dx * dx + dz * dz) <= radiusSquared;
+    }
+
     private void handleInvestigationTool(Player player, Block clicked) {
         if (!player.hasPermission("swagclaims.use")) {
             plugin.getMessages().send(player, "general.no-permission");

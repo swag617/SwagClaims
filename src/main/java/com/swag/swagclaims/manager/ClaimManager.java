@@ -687,6 +687,17 @@ public class ClaimManager {
         claim.setOwnerUuid(newOwner);
         db.updateClaimOwner(claim.getId(), newOwner);
 
+        // An admin claim (ownerUuid null, type ADMIN) being transferred to a real player becomes
+        // an ordinary player-owned claim — its area now counts against newOwner's claim block
+        // pool the same way any other BASIC claim's does (see getRemainingBlocks), with no
+        // separate debit step needed here, exactly like a BASIC-to-BASIC transfer never debits
+        // anything either. Callers (see TransferClaimCommand) gate this conversion behind
+        // swagclaims.admin.transferclaim.admin before ever reaching this method.
+        if (claim.getClaimType() == ClaimType.ADMIN && newOwner != null) {
+            claim.setClaimType(ClaimType.BASIC);
+            db.updateClaimType(claim.getId(), ClaimType.BASIC);
+        }
+
         int subdivisionsTransferred = 0;
         for (Claim sub : claimsById.values()) {
             if (sub.getParentId() != null && sub.getParentId() == claim.getId()) {
