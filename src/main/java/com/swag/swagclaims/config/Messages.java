@@ -27,7 +27,9 @@ public class Messages {
 
     public void load() {
         file = new File(plugin.getDataFolder(), "messages.yml");
-        if (!file.exists()) {
+        if (plugin.getConfigMigrationService() != null) {
+            plugin.getConfigMigrationService().migrate(plugin, "messages.yml");
+        } else if (!file.exists()) {
             plugin.saveResource("messages.yml", false);
         }
         messages = YamlConfiguration.loadConfiguration(file);

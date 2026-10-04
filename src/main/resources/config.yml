@@ -38,6 +38,18 @@ tool-border-preview:
   # Only claims within this many blocks of the player are rendered.
   radius: 48
 
+# ── Persistent border display (/claim borders toggle) ───────────────────
+# A player who runs /claim borders (alias /claim showborders) sees every nearby claim's border
+# continuously — same particle rendering as the passive tool preview above, but on regardless of
+# what they're holding — until they run the command again to turn it off. Scoped to its own
+# per-player repeating task, started/cancelled by the toggle (not just a flag), and cleaned up on
+# quit too.
+persistent-border-display:
+  # How often (in ticks) the display refreshes while toggled on. 20 ticks = 1 second.
+  interval-ticks: 20
+  # Only claims within this many blocks of the player are rendered.
+  radius: 64
+
 # ── GUI ───────────────────────────────────────────────────────────────────
 gui:
   # SimpleDateFormat pattern used for created/last-active timestamps in the claim list GUI.

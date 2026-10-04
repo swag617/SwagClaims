@@ -76,6 +76,10 @@ subdivide:
   created: "&aSubdivision created!"
   out-of-bounds: "&cA subdivision must be entirely inside its parent claim."
 
+borders:
+  mode-on: "&aPersistent border display enabled. You'll continuously see nearby claim borders until you run the command again."
+  mode-off: "&7Persistent border display disabled."
+
 admin:
   mode-on: "&aAdmin claim mode enabled. Your next claim created with the golden shovel will be an administrator claim. Run the command again to turn it off."
   mode-off: "&7Admin claim mode disabled."

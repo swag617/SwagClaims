@@ -6,15 +6,19 @@ import com.swag.swagclaims.manager.ClaimManager;
 import com.swag.swagclaims.model.Claim;
 import com.swag.swagclaims.model.ClaimType;
 import com.swag.swagclaims.model.TrustLevel;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,6 +52,15 @@ public class ClaimToolListener implements Listener {
 
     /** Player -> the top-level claim id their pending first corner was placed inside, in subdivision mode. */
     private final Map<UUID, Long> pendingSubdivisionParent = new HashMap<>();
+
+    /**
+     * Player -> their running {@code /claim borders} display task, if toggled on. Unlike
+     * {@link #subdivisionMode}/{@link #adminClaimMode} (plain flags checked by other code paths),
+     * this needs an actual scheduled, cancellable task per player since nothing else is already
+     * polling on an interval for a player who isn't holding a claim tool. Cleaned up on toggle-off
+     * ({@link #toggleBorderDisplay}) and on quit ({@link #onQuit}) so no task outlives its player.
+     */
+    private final Map<UUID, BukkitTask> borderDisplayTasks = new HashMap<>();
 
     private record ResizeSession(long claimId, int fixedX, int fixedZ) {
     }
@@ -286,7 +299,9 @@ public class ClaimToolListener implements Listener {
      * A linear scan over every loaded claim per tool-holding player — the same "fine for the
      * claim counts a single server accumulates" reasoning {@link ClaimManager#getClaimAt} already
      * relies on, bounded further here since it only runs for players actually holding a tool and
-     * only considers claims within {@code tool-border-preview.radius} blocks.
+     * only considers claims within {@code tool-border-preview.radius} blocks. Players who toggled
+     * {@code /claim borders} on get their own independent task (see {@link #toggleBorderDisplay})
+     * and are skipped here to avoid a doubled-up render.
      */
     public void renderBorderPreviews() {
         Material modTool = plugin.getClaimsConfig().getModificationTool();
@@ -297,14 +312,57 @@ public class ClaimToolListener implements Listener {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             Material held = player.getInventory().getItemInMainHand().getType();
             if (held != modTool && held != investigateTool) continue;
+            // Players with the persistent toggle on already get a render from their own task
+            // below — skip them here so a tool-holding, toggled-on player doesn't get doubled up.
+            if (borderDisplayTasks.containsKey(player.getUniqueId())) continue;
 
-            Location loc = player.getLocation();
-            String world = player.getWorld().getName();
-            for (Claim claim : claimManager.getAllClaims()) {
-                if (!claim.getWorld().equalsIgnoreCase(world)) continue;
-                if (!withinRadius(claim, loc, radiusSquared)) continue;
-                plugin.getClaimVisualizer().showBorderParticles(player, claim);
-            }
+            renderNearbyBorders(player, radiusSquared);
+        }
+    }
+
+    /**
+     * Toggles the persistent {@code /claim borders} display for {@code player}: when turning on,
+     * schedules a dedicated per-player {@link BukkitTask} that renders every claim within
+     * {@code persistent-border-display.radius} on {@code persistent-border-display.interval-ticks}
+     * — regardless of what the player is holding, unlike {@link #renderBorderPreviews}. When
+     * turning off, cancels and removes that task. Returns the new state (true = now on).
+     */
+    public boolean toggleBorderDisplay(Player player) {
+        UUID uuid = player.getUniqueId();
+        BukkitTask existing = borderDisplayTasks.remove(uuid);
+        if (existing != null) {
+            existing.cancel();
+            return false;
+        }
+
+        double radius = plugin.getClaimsConfig().getPersistentBorderRadius();
+        double radiusSquared = radius * radius;
+        long interval = plugin.getClaimsConfig().getPersistentBorderIntervalTicks();
+
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            Player online = Bukkit.getPlayer(uuid);
+            if (online == null) return; // onQuit below cancels this task; this is just a safety net
+            renderNearbyBorders(online, radiusSquared);
+        }, 0L, interval);
+        borderDisplayTasks.put(uuid, task);
+        return true;
+    }
+
+    /** Cancels and removes a running border-display task, if {@code player} has one. No-op otherwise. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onQuit(PlayerQuitEvent event) {
+        BukkitTask task = borderDisplayTasks.remove(event.getPlayer().getUniqueId());
+        if (task != null) task.cancel();
+    }
+
+    /** Renders every nearby claim's border to {@code player} — shared by the passive tool preview and the persistent toggle. */
+    private void renderNearbyBorders(Player player, double radiusSquared) {
+        Location loc = player.getLocation();
+        String world = player.getWorld().getName();
+        for (Claim claim : claimManager.getAllClaims()) {
+            if (!claim.getWorld().equalsIgnoreCase(world)) continue;
+            if (!withinRadius(claim, loc, radiusSquared)) continue;
+            plugin.getClaimVisualizer().showBorderParticles(player, claim);
         }
     }
 

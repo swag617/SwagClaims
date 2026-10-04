@@ -83,6 +83,18 @@ public class ClaimsConfig {
         return Math.max(1, plugin.getConfig().getInt("tool-border-preview.radius", 48));
     }
 
+    // ── Persistent border display (/claim borders toggle) ──────────────────
+
+    /** How often (in ticks) the border display refreshes for a player who toggled it on. */
+    public int getPersistentBorderIntervalTicks() {
+        return Math.max(1, plugin.getConfig().getInt("persistent-border-display.interval-ticks", 20));
+    }
+
+    /** Only claims within this many blocks of the player are rendered. */
+    public int getPersistentBorderRadius() {
+        return Math.max(1, plugin.getConfig().getInt("persistent-border-display.radius", 64));
+    }
+
     // ── GUI ─────────────────────────────────────────────────────────────────
 
     /** {@link java.text.SimpleDateFormat} pattern used for created/last-active timestamps in {@code ClaimListGUI}. */

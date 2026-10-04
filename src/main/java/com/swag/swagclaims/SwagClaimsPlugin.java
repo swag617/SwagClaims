@@ -1,5 +1,6 @@
 package com.swag.swagclaims;
 
+import com.SwagDev.SwagAPI.api.IConfigMigrationService;
 import com.SwagDev.SwagAPI.api.IDatabaseService;
 import com.SwagDev.SwagAPI.api.IEventBusService;
 import com.swag.swagclaims.command.AbandonAllClaimsCommand;
@@ -30,7 +31,6 @@ import com.swag.swagclaims.command.TrustMenuCommand;
 import com.swag.swagclaims.command.UnclaimBanCommand;
 import com.swag.swagclaims.command.UntrustCommand;
 import com.swag.swagclaims.config.ClaimsConfig;
-import com.swag.swagclaims.config.ConfigMigrator;
 import com.swag.swagclaims.config.Messages;
 import com.swag.swagclaims.database.ClaimDatabaseManager;
 import com.swag.swagclaims.integration.VaultIntegration;
@@ -64,6 +64,7 @@ public class SwagClaimsPlugin extends JavaPlugin {
     // ── SwagAPI service references ─────────────────────────────────────────
     private IDatabaseService dbService;
     private IEventBusService eventBusService; // soft — claim lifecycle events are best-effort
+    private IConfigMigrationService configMigrationService; // soft — defensive only, SwagAPI always registers this
 
     private ClaimsConfig claimsConfig;
     private Messages messages;
@@ -84,13 +85,22 @@ public class SwagClaimsPlugin extends JavaPlugin {
         try {
             instance = this;
             saveDefaultConfig();
-            ConfigMigrator.migrate(this);
-            reloadConfig();
 
             if (!hookSwagAPI()) {
                 getServer().getPluginManager().disablePlugin(this);
                 return;
             }
+
+            // Migrate config.yml — saveDefaultConfig() above is a no-op once config.yml already
+            // exists on disk, so any new keys added in a later phase never reach an existing
+            // install without this. Needs hookSwagAPI() to have run first (resolves the service
+            // via ServicesManager) and must happen before ClaimsConfig reads any values below.
+            // This replaces the plugin's own former local ConfigMigrator, which did the exact
+            // same recursive merge — now consolidated onto the shared ecosystem-wide service.
+            if (configMigrationService != null) {
+                configMigrationService.migrate(this);
+            }
+            reloadConfig();
 
             this.claimsConfig = new ClaimsConfig(this);
             this.messages = new Messages(this);
@@ -298,6 +308,14 @@ public class SwagClaimsPlugin extends JavaPlugin {
             getLogger().info("SwagAPI IEventBusService not registered — claim lifecycle events won't be published.");
         }
 
+        RegisteredServiceProvider<IConfigMigrationService> cfgMigrationProv = sm.getRegistration(IConfigMigrationService.class);
+        if (cfgMigrationProv != null) {
+            configMigrationService = cfgMigrationProv.getProvider();
+            getLogger().info("Hooked SwagAPI IConfigMigrationService.");
+        } else {
+            getLogger().warning("SwagAPI IConfigMigrationService not registered — config.yml/messages.yml won't be auto-migrated on this boot.");
+        }
+
         getLogger().info("SwagAPI hook complete.");
         return true;
     }
@@ -321,6 +339,11 @@ public class SwagClaimsPlugin extends JavaPlugin {
     /** Nullable — SwagAPI's event bus is a soft dependency (see {@link #hookSwagAPI()}). */
     public IEventBusService getEventBusService() {
         return eventBusService;
+    }
+
+    /** Nullable defensively — SwagAPI always registers this, but never assume (see {@link #hookSwagAPI()}). */
+    public IConfigMigrationService getConfigMigrationService() {
+        return configMigrationService;
     }
 
     public ClaimsConfig getClaimsConfig() {

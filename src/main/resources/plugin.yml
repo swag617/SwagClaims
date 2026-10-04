@@ -17,7 +17,7 @@ softdepend:
 commands:
   claim:
     description: Main SwagClaims command
-    usage: /<command> [help|info|list|trust|untrust|abandon|abandontoplevel|abandonall|reload|migrategp|claimban|unclaimban|permissiontrust|extendclaim]
+    usage: /<command> [help|info|list|trust|untrust|abandon|abandontoplevel|abandonall|reload|migrategp|claimban|unclaimban|permissiontrust|extendclaim|borders]
     aliases: [swagclaims, sc]
   trust:
     description: Grant a player BUILD trust in the claim you are standing in
@@ -175,6 +175,10 @@ permissions:
 
   swagclaims.extendclaim:
     description: Allows extending claims you can manage with /extendclaim
+    default: true
+
+  swagclaims.borders:
+    description: Allows toggling the persistent nearby-claim border display with /claim borders
     default: true
 
   swagclaims.admin:

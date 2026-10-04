@@ -75,6 +75,8 @@ public class ClaimCommand implements CommandExecutor, TabCompleter {
 
             case "extendclaim" -> new ExtendClaimCommand(plugin).onCommand(sender, command, "extendclaim", rest);
 
+            case "borders", "showborders" -> handleBordersToggle(sender);
+
             default -> {
                 Player player = sender instanceof Player p ? p : null;
                 if (player != null) {
@@ -85,6 +87,24 @@ public class ClaimCommand implements CommandExecutor, TabCompleter {
             }
         }
         return true;
+    }
+
+    /**
+     * Toggles the persistent border display (see {@link com.swag.swagclaims.listener.ClaimToolListener#toggleBorderDisplay}):
+     * once on, the player continuously sees nearby claim borders via particles — regardless of
+     * what they're holding — until they run {@code /claim borders} again. No standalone top-level
+     * command for this one (unlike e.g. {@code /trust}) since it's purely a {@code /claim}
+     * subcommand, matching {@code /siege}'s precedent of not needing a mirrored entry point.
+     */
+    private void handleBordersToggle(CommandSender sender) {
+        Player player = ClaimCommandUtil.requirePlayer(plugin, sender);
+        if (player == null) return;
+        if (!player.hasPermission("swagclaims.borders")) {
+            plugin.getMessages().send(player, "general.no-permission");
+            return;
+        }
+        boolean nowOn = plugin.getClaimToolListener().toggleBorderDisplay(player);
+        plugin.getMessages().send(player, nowOn ? "borders.mode-on" : "borders.mode-off");
     }
 
     private void handleReload(CommandSender sender) {
@@ -111,6 +131,7 @@ public class ClaimCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/claimban <player> " + ChatColor.GRAY + "- Ban a player from the claim you're standing in");
         sender.sendMessage(ChatColor.YELLOW + "/unclaimban <player> " + ChatColor.GRAY + "- Remove a player's ban from this claim");
         sender.sendMessage(ChatColor.YELLOW + "/extendclaim <amount> <direction> " + ChatColor.GRAY + "- Extend this claim outward");
+        sender.sendMessage(ChatColor.YELLOW + "/claim borders " + ChatColor.GRAY + "- Toggle persistent nearby-claim border display");
         if (sender.hasPermission("swagclaims.admin.reload")) {
             sender.sendMessage(ChatColor.RED + "/claim reload " + ChatColor.GRAY + "- Reload configuration (admin)");
         }
@@ -123,7 +144,8 @@ public class ClaimCommand implements CommandExecutor, TabCompleter {
     private static final List<String> SUBCOMMANDS = Arrays.asList(
             "help", "info", "list", "trust", "untrust", "containertrust", "accesstrust",
             "abandon", "abandontoplevel", "abandonall", "reload", "migrategp",
-            "claimban", "unclaimban", "permissiontrust", "pt", "extendclaim");
+            "claimban", "unclaimban", "permissiontrust", "pt", "extendclaim",
+            "borders", "showborders");
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {

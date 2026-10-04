@@ -75,54 +75,70 @@ public class ClaimVisualizer {
 
     /**
      * Renders a claim's boundary to a single viewer using per-player {@link Particle#DUST}
-     * points traced along all four edges, at the viewer's feet and roughly eye height. Unlike
-     * {@link #show}, this spawns no real entities and self-cleans (particles are one-shot), so
-     * it's cheap enough to call repeatedly on an interval for every player holding a claim tool
-     * — see {@code ClaimToolListener#renderBorderPreviews}. {@link Player#spawnParticle} sends
+     * points traced along all four edges, anchored to the real terrain/water surface at each
+     * point. Unlike {@link #show}, this spawns no real entities and self-cleans (particles are
+     * one-shot), so it's cheap enough to call repeatedly on an interval for every player holding
+     * a claim tool — see {@code ClaimToolListener#renderBorderPreviews} — or with the toggle
+     * (see {@code ClaimToolListener#toggleBorderDisplay}). {@link Player#spawnParticle} sends
      * the packet only to {@code viewer}, so other nearby players never see it.
+     *
+     * <p>Each point is rendered as a short vertical pillar (three levels, ~1.6 blocks tall)
+     * starting at {@link World#getHighestBlockYAt(int, int)} rather than at the viewer's current
+     * Y. This used to track the viewer's Y, which put the border underwater (and fogged out)
+     * whenever the viewer was swimming near an ocean claim — {@code getHighestBlockYAt} uses the
+     * MOTION_BLOCKING heightmap, which includes fluids, so for an ocean column this resolves to
+     * the water's surface, the most visible spot regardless of whether the viewer is below it
+     * (swimming), on it (boating), or standing elsewhere on dry land. Each level also fires a
+     * small cluster (2 particles with a touch of spread) instead of one pixel-sized dot, and
+     * {@code DustOptions} size is bumped to make the motes themselves bigger — both needed
+     * because a single small dust particle reads as a faint speck against bright water.
      *
      * <p>Color communicates relationship to the viewer: gold for an admin claim, green for a
      * claim the viewer owns, red for anyone else's — matching the "an administrator" treatment
      * already used elsewhere (see {@code ClaimCommandUtil#sendClaimInfo}, {@code OVERLAP} in
-     * {@code ClaimToolListener#handleResult}).
+     * {@code ClaimToolListener#handleResult}). Colors are deliberately saturated/bright rather
+     * than muted so they keep contrast against blue water.
      */
     public void showBorderParticles(Player viewer, Claim claim) {
         World world = viewer.getWorld();
         if (!world.getName().equalsIgnoreCase(claim.getWorld())) return;
 
         Particle.DustOptions dust = colorFor(claim, viewer);
-        double y = viewer.getLocation().getY();
 
         for (int[] point : edgePoints(claim)) {
             double x = point[0] + 0.5;
             double z = point[1] + 0.5;
-            viewer.spawnParticle(Particle.DUST, x, y + 0.2, z, 1, 0.0, 0.0, 0.0, 0.0, dust);
-            viewer.spawnParticle(Particle.DUST, x, y + 1.2, z, 1, 0.0, 0.0, 0.0, 0.0, dust);
+            double surfaceY = world.getHighestBlockYAt(point[0], point[1]) + 1.0;
+            for (double dy = 0.0; dy <= 1.61; dy += 0.8) {
+                viewer.spawnParticle(Particle.DUST, x, surfaceY + dy, z, 2, 0.06, 0.02, 0.06, 0.0, dust);
+            }
         }
     }
 
     private Particle.DustOptions colorFor(Claim claim, Player viewer) {
         if (claim.isAdminClaim()) {
-            return new Particle.DustOptions(Color.fromRGB(255, 170, 0), 1.0f); // gold
+            return new Particle.DustOptions(Color.fromRGB(255, 200, 0), 1.8f); // bright gold
         }
         if (claim.getOwnerUuid() != null && claim.getOwnerUuid().equals(viewer.getUniqueId())) {
-            return new Particle.DustOptions(Color.fromRGB(60, 220, 60), 1.0f); // green — your own claim
+            return new Particle.DustOptions(Color.fromRGB(40, 255, 90), 1.8f); // neon green — your own claim
         }
-        return new Particle.DustOptions(Color.fromRGB(220, 60, 60), 1.0f); // red — someone else's claim
+        return new Particle.DustOptions(Color.fromRGB(255, 40, 40), 1.8f); // vivid red — someone else's claim
     }
 
     /**
      * Points traced along all four edges of the claim's horizontal bounds, spaced adaptively so
-     * the total point count stays bounded (~120) regardless of how large the claim is — this
-     * method is called on a fixed interval for every tool-holding player (see
+     * the total point count stays bounded (~160) regardless of how large the claim is — this
+     * method is called on a fixed interval for every tool-holding or border-toggled player (see
      * {@code ClaimToolListener#renderBorderPreviews}), so an unbounded point count on a huge
-     * claim would scale badly; a coarser step on bigger claims keeps the per-call cost flat.
+     * claim would scale badly; a coarser step on bigger claims keeps the per-call cost flat. 160
+     * (up from a prior 120) trades a little more per-call cost for a visibly denser line, which
+     * matters most over water where a sparse dotted line is easy to miss entirely.
      */
     private List<int[]> edgePoints(Claim claim) {
         int minX = claim.getMinX(), maxX = claim.getMaxX();
         int minZ = claim.getMinZ(), maxZ = claim.getMaxZ();
         long perimeter = 2L * (claim.getWidthX() + claim.getWidthZ());
-        int step = Math.max(2, (int) (perimeter / 120L));
+        int step = Math.max(2, (int) (perimeter / 160L));
 
         List<int[]> points = new ArrayList<>();
         for (int x = minX; x < maxX; x += step) {
