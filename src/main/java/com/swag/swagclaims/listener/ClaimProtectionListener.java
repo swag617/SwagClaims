@@ -170,10 +170,33 @@ public class ClaimProtectionListener implements Listener {
 
         if (isPubliclyAllowed(claim, block.getType())) return; // allowlevers/allowdoors/allowtrapdoors opt-in
 
+        if (yieldsItemsOrResources(block.getType())) {
+            // Jukeboxes/bookshelves/lecterns/beehives/composters hand over a real item or resource
+            // on interact, same as a container — gating them at ACCESS let any claim that grants
+            // public/group ACCESS (a common setup, e.g. to let people open doors) unintentionally
+            // expose these to looting too. Reported: "can take items from book shelf out of player
+            // claims." Require CONTAINER trust specifically for these, same tier as chests.
+            if (!claimManager.hasPermission(player, loc, TrustLevel.CONTAINER)) {
+                event.setCancelled(true);
+                sendDenied(player, claim, "protection.no-container");
+            }
+            return;
+        }
+
         if (!claimManager.hasPermission(player, loc, TrustLevel.ACCESS)) {
             event.setCancelled(true);
             sendDenied(player, claim, "protection.no-access");
         }
+    }
+
+    /** Subset of {@link #isGatedInteractable} that hands the interacting player a real item or resource, and so needs CONTAINER trust rather than plain ACCESS. */
+    private boolean yieldsItemsOrResources(Material type) {
+        return type == Material.JUKEBOX
+                || type == Material.CHISELED_BOOKSHELF
+                || type == Material.LECTERN
+                || type == Material.BEE_NEST
+                || type == Material.BEEHIVE
+                || type == Material.COMPOSTER;
     }
 
     /**

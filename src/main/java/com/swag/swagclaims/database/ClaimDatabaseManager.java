@@ -104,7 +104,18 @@ public class ClaimDatabaseManager {
                         "accrued_blocks BIGINT NOT NULL DEFAULT 0," +
                         "bonus_blocks BIGINT NOT NULL DEFAULT 0," +
                         "last_login BIGINT NOT NULL DEFAULT 0," +
-                        "ignore_claims BOOLEAN NOT NULL DEFAULT 0)");
+                        "ignore_claims BOOLEAN NOT NULL DEFAULT 0," +
+                        "block_incoming_claimblocks BOOLEAN NOT NULL DEFAULT 0)");
+
+                // CREATE TABLE IF NOT EXISTS is a no-op on an already-existing production table,
+                // so a column added after initial release (this one) needs its own idempotent
+                // migration here too, same as every other ecosystem plugin's "ALTER TABLE, catch
+                // and ignore if it's already there" pattern.
+                try {
+                    st.execute("ALTER TABLE swagclaims_playerdata ADD COLUMN block_incoming_claimblocks BOOLEAN NOT NULL DEFAULT 0");
+                } catch (SQLException ignored) {
+                    // Column already exists — expected on every boot after the first.
+                }
 
                 st.execute("CREATE TABLE IF NOT EXISTS swagclaims_siege (" +
                         "id INTEGER PRIMARY KEY " + autoIncrement + "," +

@@ -6,7 +6,7 @@
 
     <groupId>com.swag</groupId>
     <artifactId>SwagClaims</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
     <description>GriefPrevention-style land claims plugin for the Swag617 ecosystem</description>
     <licenses>

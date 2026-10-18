@@ -15,18 +15,13 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.AbstractVillager;
 import org.bukkit.entity.AbstractWindCharge;
 import org.bukkit.entity.Animals;
+import org.bukkit.entity.Enemy;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Ghast;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.MagmaCube;
-import org.bukkit.entity.Monster;
-import org.bukkit.entity.Phantom;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
-import org.bukkit.entity.Shulker;
-import org.bukkit.entity.Slime;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockFadeEvent;
@@ -66,8 +61,20 @@ import java.util.concurrent.ThreadLocalRandom;
  * cancels {@link CreatureSpawnEvent} — a hostile mob that wanders in from outside (or is moved in
  * by a player) is left alone. {@code nomonsters} does that AND periodically sweeps away any
  * hostile mobs already present, via {@link #purgeMonsters()}. Both flags gate the exact same
- * "hostile monster" check ({@link #isHostileMonster}, which — since {@code org.bukkit.entity.Monster}
- * doesn't cover slimes/magma cubes/phantoms/ghasts/shulkers — explicitly includes those too).
+ * "hostile monster" check ({@link #isHostileMonster}, which delegates to
+ * {@code org.bukkit.entity.Enemy} — Bukkit's own marker interface for "can deal damage to other
+ * entities/players", covering {@code Monster}, {@code Slime}/{@code MagmaCube}, {@code Phantom},
+ * {@code Ghast}, {@code Shulker}, {@code EnderDragon} AND {@code Hoglin}).
+ *
+ * <p><b>2026-10-08 bugfix:</b> this previously hand-enumerated
+ * {@code Monster || Slime || MagmaCube || Phantom || Ghast || Shulker}, which does not cover
+ * {@code Hoglin} (Bukkit's {@code Hoglin} interface extends {@code Animals} + {@code Enemy}, not
+ * {@code Monster}) or {@code EnderDragon}. Since Hoglins naturally spawn based on biome (crimson /
+ * warped forest) rather than dimension, a claim with its biome overridden to a nether biome in a
+ * non-nether world would spawn Hoglins unthrottled by vanilla despawn/spawn-cap pressure from other
+ * nether mobs, and {@code nomonsters}/{@code nomonsterspawns} silently never evaluated for them
+ * because {@link #isHostileMonster} returned {@code false} and the handler early-returned before
+ * ever calling {@code flagManager.isSetAt}.
  */
 public class ClaimFlagListener implements Listener {
 
@@ -92,6 +99,12 @@ public class ClaimFlagListener implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onCreatureSpawn(CreatureSpawnEvent event) {
         if (!isHostileMonster(event.getEntity())) return;
+        // Never cancel a trial spawner's own mob: the vanilla trial spawner tracks that spawn
+        // attempt as "this wave's mob" regardless of whether the CreatureSpawnEvent survives, so
+        // cancelling it still lets the spawner advance/reward as if the mob had been defeated —
+        // a free, risk-free loot/key farm inside any claim with nomonsters set over a trial
+        // chamber. Letting the mob actually spawn is what forces it to be fought for real.
+        if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.TRIAL_SPAWNER) return;
         Location loc = event.getLocation();
         if (flagManager.isSetAt(loc, ClaimFlags.NO_MONSTERS) || flagManager.isSetAt(loc, ClaimFlags.NO_MONSTER_SPAWNS)) {
             event.setCancelled(true);
@@ -102,6 +115,9 @@ public class ClaimFlagListener implements Listener {
         for (World world : Bukkit.getWorlds()) {
             for (Entity entity : world.getEntities()) {
                 if (!isHostileMonster(entity)) continue;
+                // Same trial-spawner exemption as onCreatureSpawn — otherwise this sweep just
+                // removes the mob a few seconds after spawn instead of instantly, same exploit.
+                if (entity.getEntitySpawnReason() == CreatureSpawnEvent.SpawnReason.TRIAL_SPAWNER) continue;
                 if (flagManager.isSetAt(entity.getLocation(), ClaimFlags.NO_MONSTERS)) {
                     entity.remove();
                 }
@@ -110,8 +126,7 @@ public class ClaimFlagListener implements Listener {
     }
 
     private boolean isHostileMonster(Entity entity) {
-        return entity instanceof Monster || entity instanceof Slime || entity instanceof MagmaCube
-                || entity instanceof Phantom || entity instanceof Ghast || entity instanceof Shulker;
+        return entity instanceof Enemy;
     }
 
     // ── nohunger ────────────────────────────────────────────────────────────

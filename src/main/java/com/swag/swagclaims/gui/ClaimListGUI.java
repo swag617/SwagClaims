@@ -207,18 +207,18 @@ public class ClaimListGUI implements OpenMenu {
     }
 
     /**
-     * Scans downward from just above the claim's own recorded top for the first standing spot
-     * with two passable blocks (feet/head, non-lava) over solid, non-hazardous ground — the
-     * "don't teleport into a block or off a cliff into lava" safety check called out in the
-     * phase plan. Returns null if nothing safe is found in range, in which case the teleport is
-     * aborted rather than dropping the player somewhere dangerous.
+     * Scans for the first standing spot with two passable blocks (feet/head, non-lava) over
+     * solid, non-hazardous ground — the "don't teleport into a block or off a cliff into lava"
+     * safety check called out in the phase plan. Returns null if nothing safe is found in range,
+     * in which case the teleport is aborted rather than dropping the player somewhere dangerous.
      *
-     * <p>Deliberately anchors on {@code claim.getMaxY()} rather than
-     * {@code world.getHighestBlockYAt(x, z)}: the latter is a world-column heightmap, which in
-     * the Nether returns the bedrock roof (there is no "surface" there in the Overworld sense),
-     * dropping players on the nether roof for any claim built at normal Nether floor height —
-     * a real reported bug. The claim's own Y bounds are always where the player actually built,
-     * regardless of dimension.</p>
+     * <p>Every claim (including subdivisions) is created spanning the full world-height column
+     * ({@code ClaimToolListener}), so {@code claim.getMinY()}/{@code getMaxY()} carry zero
+     * information about where the player actually built — they're always just the world floor/
+     * ceiling. In the Nether, a top-down scan anchored there starts right at the bedrock roof,
+     * dropping players there instead of at their actual build — a real reported bug. The Nether
+     * has no meaningful "surface" concept ({@code world.getHighestBlockYAt} also returns the
+     * bedrock roof there), so for that dimension this scans bottom-up from the floor instead.</p>
      */
     private Location findSafeTeleportLocation(Claim claim) {
         World world = Bukkit.getWorld(claim.getWorld());
@@ -227,8 +227,19 @@ public class ClaimListGUI implements OpenMenu {
         int x = (claim.getMinX() + claim.getMaxX()) / 2;
         int z = (claim.getMinZ() + claim.getMaxZ()) / 2;
 
-        int top = Math.min(claim.getMaxY() + 3, world.getMaxHeight() - 2);
-        int bottom = Math.max(claim.getMinY() - 1, world.getMinHeight() + 1);
+        if (world.getEnvironment() == World.Environment.NETHER) {
+            int bottom = world.getMinHeight() + 1;
+            int top = world.getMaxHeight() - 2;
+            for (int y = bottom; y <= top; y++) {
+                if (isSafeStandingLocation(world, x, y, z)) {
+                    return new Location(world, x + 0.5, y, z + 0.5, viewer.getLocation().getYaw(), viewer.getLocation().getPitch());
+                }
+            }
+            return null;
+        }
+
+        int top = world.getMaxHeight() - 2;
+        int bottom = world.getMinHeight() + 1;
         for (int y = top; y >= bottom; y--) {
             if (isSafeStandingLocation(world, x, y, z)) {
                 return new Location(world, x + 0.5, y, z + 0.5, viewer.getLocation().getYaw(), viewer.getLocation().getPitch());
